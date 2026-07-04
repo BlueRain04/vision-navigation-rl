@@ -1,0 +1,394 @@
+import torch
+from isaaclab.markers import VisualizationMarkers
+import isaaclab.sim as sim_utils
+from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR
+from isaaclab.envs import DirectRLEnv
+from .drone_env_cfg import DroneNavEnvCfg
+from isaaclab.assets import Articulation, RigidObject
+from dataclasses import replace
+from isaaclab.sensors import TiledCamera, ContactSensor
+import isaaclab.utils.math as math_utils
+import math
+
+def contact_penalty(env,
+    contact_sensor_name: str,
+    threshold: float = 1.0, 
+    ) -> torch.Tensor:
+    """
+    Penalize collisions with obstacles using filtered contact sensors.
+    Uses force_matrix_w: (E, B, F, 3). Returns (E,) in [-1, 1].
+    """
+    total_penalty = torch.zeros(env.num_envs, device=env.device)
+    sensor = env.scene.sensors.get(contact_sensor_name, None)
+    if sensor is None:
+        return total_penalty
+    fm = getattr(sensor.data, "force_matrix_w", None)
+    if isinstance(fm, torch.Tensor) and fm.numel() > 0:
+        strength = torch.norm(fm, dim=-1).amax(dim=(1, 2))
+        excess = torch.clamp(strength - threshold, min = 0.0)
+        total_penalty += excess
+    return torch.tanh(total_penalty)
+
+def terminate_on_contact(env,
+    contact_sensor_name: str,
+    threshold: float = 1.0,
+    ) -> torch.Tensor:
+    """Terminate ONLY if filtered obstacle contacts exceed threshold."""
+    term = torch.zeros(env.num_envs, dtype=torch.bool, device=env.device)
+    sensor = env.scene.sensors.get(contact_sensor_name, None)
+    if sensor is None:
+        return term
+    fm = getattr(sensor.data, "force_matrix_w", None)
+    if isinstance(fm, torch.Tensor) and fm.numel() > 0:
+        strength = torch.norm(fm, dim=-1).amax(dim=(1, 2))
+        term |= strength > threshold
+    return term
+
+def define_markers() -> VisualizationMarkers:
+    marker_cfg = VisualizationMarkers(
+        prim_path="/Visuals/myMarkers",
+        markers={
+            "forward": sim_utils.UsdFileCfg(
+                usd_path=f"{ISAAC_NUCLEUS_DIR}/Props/UIElements/arrow_x.usd",
+                scale=(0.25, 0.25, 0.5),
+                visual_material=sim_utils.PreviewSurfaceCfg(
+                    diffuse_color=(0.0, 1.0, 0.0)
+                ),
+            ),
+            "command": sim_utils.UsdFileCfg(
+                usd_path=f"{ISAAC_NUCLEUS_DIR}/Props/UIElements/arrow_x.usd",
+                scale=(0.25, 0.25, 0.5),
+                visual_material=sim_utils.PreviewSurfaceCfg(
+                    diffuse_color=(1.0, 0.0, 0.0)
+                ),
+            ),
+        },
+    )
+    return VisualizationMarkers(cfg=marker_cfg)
+
+def define_goal_marker():
+    cfg = VisualizationMarkers(
+        prim_path="/Visuals/Command/goal",
+        markers= {
+            "sphere": sim_utils.SphereCfg(
+                radius = 2.0,
+                visual_material = sim_utils.PreviewSurfaceCfg(
+                    diffuse_color=(1.0, 0.0, 0.0)
+                ),
+            ),
+        },
+    )
+    return VisualizationMarkers(cfg)
+
+class DroneNavEnv(DirectRLEnv):
+    cfg: DroneNavEnvCfg
+
+    def __init__(self, cfg: DroneNavEnvCfg, render_mode: str | None = None, **kwargs):
+        self._camera_hist: torch.Tensor | None = None
+        self.history_len = cfg.history_len
+        self.num_obstacles = 10
+        super().__init__(cfg, render_mode, **kwargs)
+        self.target_pos = torch.zeros((self.num_envs, 3), device=self.device)
+        self.prev_dist = torch.zeros((self.num_envs,), device=self.device)
+        self.arrows = define_markers()
+        self.arrows.set_visibility(True)
+        self.goal_marker = define_goal_marker()
+        self.goal_marker.set_visibility(True)
+        self._body_id = self._robot.find_bodies("body")[0]
+        self._robot_mass = self._robot.root_physx_view.get_masses()[0].sum()
+        self._gravity_magnitude = torch.tensor(self.sim.cfg.gravity, device=self.device).norm()
+        self._robot_weight = (self._robot_mass * self._gravity_magnitude).item()
+        self._thrust = torch.zeros(self.num_envs, 1, 3, device=self.device)
+        self._moment = torch.zeros(self.num_envs, 1, 3, device=self.device)
+        self.up_dir = torch.tensor([0.0, 0.0, 1.0], device=self.device)
+
+    def _setup_scene(self):
+        self.cfg.terrain.spawn.func(self.cfg.terrain.prim_path, self.cfg.terrain.spawn)
+        if hasattr(self.cfg, "sky_light") and self.cfg.sky_light is not None:
+            self.cfg.sky_light.spawn.func(
+                self.cfg.sky_light.prim_path, self.cfg.sky_light.spawn
+            )
+        self._robot = Articulation(self.cfg.robot)
+        obs_configs = [
+            self.cfg.obstacle1,
+            self.cfg.obstacle2,
+            self.cfg.obstacle3,
+            self.cfg.obstacle4,
+            self.cfg.obstacle5,
+            self.cfg.obstacle6,
+            self.cfg.obstacle7,
+            self.cfg.obstacle8,
+            self.cfg.obstacle9,
+            self.cfg.obstacle10,
+        ]
+        for i, obs_cfg in enumerate(obs_configs, 1):
+            obs_cfg.spawn.func(
+                f"/World/envs/env_0/Obstacle{i}",
+                obs_cfg.spawn,
+                translation=obs_cfg.init_state.pos,
+                orientation=obs_cfg.init_state.rot,
+            )
+        combined_obs_cfg = replace(
+            self.cfg.obstacle1, prim_path="/World/envs/env_.*/Obstacle.*"
+        )
+        self.obstacle = RigidObject(combined_obs_cfg)
+        self.robot_camera = TiledCamera(self.cfg.tiled_camera)
+        self.contact_body = ContactSensor(self.cfg.contact_sensor_body)
+        self.scene.articulations["robot"] = self._robot
+        self.scene.rigid_objects["obstacle"] = self.obstacle
+        self.scene.sensors["tiled_camera"] = self.robot_camera
+        self.scene.sensors["contact_sensor_body"] = self.contact_body
+        self.scene.clone_environments(copy_from_source=True)
+
+    def _get_goal_vec(self):
+        return self.target_pos - self._robot.data.root_pos_w
+    
+    def _pre_physics_step(self, actions: torch.Tensor) -> None:
+        self._actions = actions.clone().clamp(-1.0, 1.0)
+        self._thrust[:, 0, 2] = self.cfg.thrust_to_weight * self._robot_weight * (self._actions[:, 0] + 1.0) / 2.0
+        self._moment[:, 0, :] = self.cfg.moment_scale * self._actions[:, 1:]
+        self.goal_marker.visualize(self.target_pos)
+        self._visualize_arrows()
+
+    def _visualize_arrows(self):
+        goal_vec = self._get_goal_vec()
+        command_yaws = torch.atan2(goal_vec[:, 1], goal_vec[:, 0])
+        command_rot = math_utils.quat_from_angle_axis(command_yaws, self.up_dir)
+        robot_rot = self._robot.data.root_quat_w
+
+        loc = self._robot.data.root_pos_w.clone()
+        loc[:, 2] += 0.5
+        locs = torch.cat((loc, loc), dim=0)
+        rots = torch.cat((robot_rot, command_rot), dim=0)
+
+        num = self.num_envs
+        indices = torch.cat(
+            (
+                torch.zeros(num, dtype=torch.int32, device=self.device),
+                torch.ones(num, dtype=torch.int32, device=self.device),
+            ),
+            dim=0,
+        )
+
+        self.arrows.visualize(
+            translations=locs, orientations=rots, marker_indices=indices
+        )
+        
+    def _apply_action(self):
+        self._robot.permanent_wrench_composer.set_forces_and_torques(
+            body_ids=self._body_id, forces=self._thrust, torques=self._moment
+        )
+
+    def _get_observations(self) -> dict:
+        self.robot_camera.update(dt=self.cfg.sim.dt * self.cfg.decimation)
+
+        #update contact sensor
+        dt = self.cfg.sim.dt * self.cfg.decimation
+        self.contact_body.update(dt=dt)
+
+        camera_data = self.robot_camera.data.output["rgb"].float() / 255.0
+
+        if self._camera_hist is None:
+            self._camera_hist = (
+                camera_data.unsqueeze(1)
+                .repeat(1, self.history_len, 1, 1, 1)
+                .contiguous()
+            )
+        else:
+            new_frame = camera_data.unsqueeze(1)
+            self._camera_hist = torch.cat(
+                [self._camera_hist[:, 1:], new_frame], dim=1
+            )
+
+        N, T, H, W, _ = self._camera_hist.shape
+
+        goal_vec = self._get_goal_vec()
+        goal_dist = torch.linalg.norm(goal_vec, dim=-1, keepdim=True)
+        unit_goal = goal_vec / (goal_dist + 1e-6)
+
+        state_input = torch.hstack((unit_goal, goal_dist))
+        state_expanded = state_input[:, None, None, None, :].expand(N, T, H, W, 4)
+
+        obs_combined = torch.cat([self._camera_hist.clone(), state_expanded], dim=-1)
+        return {"policy": obs_combined}
+    
+    def _get_rewards(self) -> torch.Tensor:
+        #A projected velocity
+        robot_lin_vel = self._robot.data.root_lin_vel_w[:, :3]
+        goal_vec = self._get_goal_vec()
+        goal_dir = goal_vec / (torch.norm(goal_vec, dim=-1, keepdim=True) + 1e-6)
+        velocity_proj = torch.sum(robot_lin_vel * goal_dir, dim=-1)
+        progress_reward = velocity_proj * 2.5
+
+        #B delta distance reward
+        dist = torch.linalg.norm(goal_vec, dim=-1)
+        dist_delta = self.prev_dist - dist
+        self.prev_dist = dist.clone()
+        dist_reward = dist_delta * 0.5
+
+        #C collision penalty
+        collision_val = contact_penalty(self, "contact_sensor_body", threshold=0.1)
+        collision_reward = collision_val * -5.0
+
+        #D success
+        reached = dist < self.cfg.target_reach_threshold
+        success_reward = reached.float() * 100.0
+
+        #angle alignment reward
+        self._forward_vec_b = torch.tensor([1.0, 0.0, 0.0], device=self.device).repeat(self.num_envs, 1)
+        forwards = math_utils.quat_apply(self._robot.data.root_quat_w,
+                                        self._forward_vec_b)
+        
+        goal_vec = self._get_goal_vec()
+        goal_dir = goal_vec / (torch.norm(goal_vec, dim=-1, keepdim=True) + 1e-6)
+
+        alignment = torch.sum(forwards * goal_dir, dim=-1)            
+        alignment_reward = alignment * 0.5
+
+        ang_vel_penalty = torch.sum(self._robot.data.root_ang_vel_b ** 2,dim=-1)
+
+        ang_vel_scale = -0.01
+        ang_vel_penalty *= ang_vel_scale                
+
+        total = (
+            progress_reward +
+            dist_reward +
+            alignment_reward +
+            collision_reward +
+            success_reward +
+            ang_vel_penalty
+        )
+        return total
+    
+    def _get_dones(self) -> tuple[torch.Tensor, torch.Tensor]:
+        time_out = self.episode_length_buf >= (self.max_episode_length - 1)
+
+        goal_vec = self._get_goal_vec()
+        dist = torch.linalg.norm(goal_vec, dim=-1)
+        reached = dist < self.cfg.target_reach_threshold
+
+        crashed = terminate_on_contact(self, "contact_sensor_body", threshold=0.1)
+
+        return (reached | crashed), time_out
+    
+    def _reset_idx(self, env_ids: torch.Tensor | None):
+        if env_ids is None:
+            env_ids = self._robot._ALL_INDICES
+        num_resets = len(env_ids)
+
+        #reset robot
+        root_state = self._robot.data.default_root_state[env_ids].clone()
+        root_state[:, :3] += self.scene.env_origins[env_ids]
+
+        #random yaw
+        rand_yaw = torch.zeros((num_resets, 3), device=self.device)
+        rand_yaw[:, 2] = torch.rand(num_resets, device=self.device) * 2.0 * math.pi
+
+        quat = math_utils.quat_from_euler_xyz(
+            rand_yaw[:, 0], rand_yaw[:, 1], rand_yaw[:, 2]
+        )
+        root_state[:, 3:7] = quat
+        root_state[:, 7:] = 0.0
+
+        self._robot.write_root_state_to_sim(root_state, env_ids)
+        self._robot.write_joint_state_to_sim(0.0, 0.0, env_ids=env_ids)
+
+        if self._camera_hist is not None:
+            self._camera_hist[env_ids] = 0.0
+
+        #reset goal
+        goal_radii = torch.empty(num_resets, device=self.device).uniform_(3.5, 5.0)
+        goal_thetas = torch.empty(num_resets, device=self.device).uniform_(
+            -math.pi, math.pi
+        )
+
+        self.target_pos[env_ids, 0] = (
+            self.scene.env_origins[env_ids, 0]
+            + goal_radii * torch.cos(goal_thetas)
+        )
+        self.target_pos[env_ids, 1] = (
+            self.scene.env_origins[env_ids, 1]
+            + goal_radii * torch.sin(goal_thetas)
+        )
+        goal_z = torch.empty(num_resets, device=self.device).uniform_(1.0, 3.0)
+        self.target_pos[env_ids, 2] = (
+            self.scene.env_origins[env_ids, 2]
+            + goal_z
+        )
+
+        #reset prev distances for delta-distance reward
+        goal_vec_init = self.target_pos[env_ids] - self._robot.data.root_pos_w[env_ids]
+        self.prev_dist[env_ids] = torch.linalg.norm(goal_vec_init, dim=-1)
+
+        #reset obstacles with spacing constraints
+        obs_base_ids = env_ids * self.num_obstacles
+        all_obs_ids = torch.cat(
+            [obs_base_ids + i for i in range(self.num_obstacles)], dim=0
+        )
+        total_obs = len(all_obs_ids)
+
+        positions_env: dict[int, list[tuple[torch.Tensor, torch.Tensor]]] = {}
+        env_ids_list = env_ids.tolist()
+
+        for env in env_ids_list:
+            origin = self.scene.env_origins[env]
+            goal = self.target_pos[env]
+            positions: list[tuple[torch.Tensor, torch.Tensor, torch.Tensor]] = []
+
+            for _ in range(self.num_obstacles):
+                while True:
+                    radius = (
+                        torch.rand((), device=self.device) * (3.0 - 1.5) + 1.5
+                    )
+                    theta = (
+                        torch.rand((), device=self.device) * (2 * math.pi) - math.pi
+                    )
+                    x = origin[0] + radius * torch.cos(theta)
+                    y = origin[1] + radius * torch.sin(theta)
+                    sample_z = torch.empty((), device=self.device).uniform_(1.0, 3.0)
+                    z = origin[2] + sample_z
+
+                    #obstacle-origin spacing
+                    if torch.sqrt(
+                        (x - origin[0]) ** 2 + (y - origin[1]) ** 2 + (z - origin[2]) ** 2
+                    ) < 1.5:
+                        continue
+                    #obstacle-goal spacing
+                    if torch.sqrt((x - goal[0]) ** 2 + (y - goal[1]) ** 2 + (z - goal[2]) ** 2) < 0.8:
+                        continue
+
+                    too_close = False
+                    for (ox, oy, oz) in positions:
+                        if torch.sqrt((x - ox) ** 2 + (y - oy) ** 2 + (z - oz) ** 2) < 0.8:
+                            too_close = True
+                            break
+                    if too_close:
+                        continue
+
+                    positions.append((x, y, z))
+                    break
+
+            positions_env[env] = positions
+
+        #flatten positions for all obstacles
+        obs_x_list = []
+        obs_y_list = []
+        obs_z_list = []
+        for i in range(self.num_obstacles):
+            for env in env_ids_list:
+                x, y, z = positions_env[env][i]
+                obs_x_list.append(x)
+                obs_y_list.append(y)
+                obs_z_list.append(z)
+
+        obs_x = torch.stack(obs_x_list)
+        obs_y = torch.stack(obs_y_list)
+        obs_z = torch.stack(obs_z_list)
+
+        obs_state = self.obstacle.data.default_root_state[all_obs_ids].clone()
+        obs_state[:, 0] = obs_x
+        obs_state[:, 1] = obs_y
+        obs_state[:, 2] = obs_z
+
+        self.obstacle.write_root_state_to_sim(obs_state, all_obs_ids)
+        self.episode_length_buf[env_ids] = 0
