@@ -27,7 +27,7 @@ class DroneNavEnvCfg(DirectRLEnvCfg):
     )
 
     scene: InteractiveSceneCfg = InteractiveSceneCfg(
-        num_envs=128, #start with 16 then change it later
+        num_envs=16, #start with 16 then change it later
         env_spacing=15.0,
         replicate_physics=True
     )
