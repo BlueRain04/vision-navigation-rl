@@ -1,5 +1,5 @@
 import gymnasium as gym
-from drone_nav.agent import get_agent
+from drone.learning.skrl.agent import get_agent
 from skrl.trainers.torch import SequentialTrainer
 
 env = gym.make("Drone-Nav-Direct-v0", num_envs=16)
