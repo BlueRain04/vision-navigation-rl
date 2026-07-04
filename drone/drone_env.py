@@ -1,3 +1,4 @@
+from __future__ import annotations
 import torch
 from isaaclab.markers import VisualizationMarkers
 import isaaclab.sim as sim_utils

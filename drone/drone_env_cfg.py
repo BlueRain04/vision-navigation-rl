@@ -9,6 +9,7 @@ from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR
 from dataclasses import replace
 from isaaclab_assets import CRAZYFLIE_CFG
 from isaaclab.sensors import TiledCameraCfg, ContactSensorCfg
+import torch
 
 @configclass
 class DroneNavEnvCfg(DirectRLEnvCfg):
