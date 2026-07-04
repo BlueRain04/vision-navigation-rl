@@ -100,9 +100,7 @@ class DroneNavEnvCfg(DirectRLEnvCfg):
     robot: ArticulationCfg = CRAZYFLIE_CFG.replace(
         prim_path="/World/envs/env_.*/Robot",
         spawn=CRAZYFLIE_CFG.spawn.replace(
-        rigid_props=CRAZYFLIE_CFG.spawn.rigid_props.replace(
             activate_contact_sensors=True
-        )
         ),
     )
     thrust_to_weight = 1.9
