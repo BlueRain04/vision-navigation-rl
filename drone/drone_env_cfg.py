@@ -18,14 +18,14 @@ class DroneNavEnvCfg(DirectRLEnvCfg):
     episode_length_s = 10.0
     action_space = 4
     history_len = 3 #number of frames to stack
-    #3 channels (RGB) + 3 channels (goal vector X, Y, dist expanded) = 6
-    num_channels = 7 #check
-    observation_space = gym.spaces.Box( #check
+    #3 channels (RGB) + 4 channels (goal vector X, Y, Z, dist expanded) = 7
+    num_channels = 7 #could be 6 if Z axis not included!
+    observation_space = gym.spaces.Box( #will be modified once the RL agent is ready
         low=0, high=255, 
         shape=(history_len, 64, 64, num_channels),
         dtype=float
     )
-    state_space = gym.spaces.Box(low=-float("inf"), high=float("inf"), shape=(0,)) #check
+    state_space = gym.spaces.Box(low=-float("inf"), high=float("inf"), shape=(0,)) #will be modified once the RL agent is ready
     filter_to_obstacle = [ #create 10 obstacles for each env
     f"/World/envs/env_.*/Obstacle{i}"
     for i in range(1, 11)
@@ -57,13 +57,15 @@ class DroneNavEnvCfg(DirectRLEnvCfg):
         clone_in_fabric=True #faster scene creation
     )
 
-    #2 lighting & terrain
-    sky_light = AssetBaseCfg( #check
+    #lighting
+    #!improvement: we can add random lighting!"
+    #last run this was error fix it now since it affects the CNN performance
+    sky_light = AssetBaseCfg( 
         prim_path="/World/skyLight",
-        spawn=sim_utils.DomeLightCfg(
+        spawn=sim_utils.DomeLightCfg( #apply dome light
             intensity=1000.0,
             texture_file=f"{ISAAC_NUCLEUS_DIR}/Materials/Textures/Skies/PolyHave\
-            n/kloofendal_43d_clear_puresky_4k.hdr",
+            n/kloofendal_43d_clear_puresky_4k.hdr", #to make it more natural
         ),
     )
 
@@ -104,7 +106,6 @@ class DroneNavEnvCfg(DirectRLEnvCfg):
         ),
         init_state=RigidObjectCfg.InitialStateCfg(pos=(2.0, 2.0, 1.0)), #the initial position of the obstacles
     )
-
 
     #define 10 distinct obstacles using 'replace' to change the prim_path
     #!improvement: we can add random numbers of the initial position!"
@@ -170,7 +171,6 @@ class DroneNavEnvCfg(DirectRLEnvCfg):
         debug_vis=True,
         filter_prim_paths_expr=filter_to_obstacle,
     )
-
 
     #rewards / logic
     target_reach_threshold = 0.4
