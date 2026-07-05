@@ -68,7 +68,7 @@ def define_markers() -> VisualizationMarkers:
     return VisualizationMarkers(cfg=marker_cfg)
 
 def define_goal_marker():
-    cfg = VisualizationMarkers(
+    cfg = VisualizationMarkersCfg(
         prim_path="/Visuals/Command/goal",
         markers= {
             "sphere": sim_utils.SphereCfg(
