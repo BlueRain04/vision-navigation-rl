@@ -106,31 +106,31 @@ class DroneNavEnvCfg(DirectRLEnvCfg):
     #define 10 distinct obstacles using 'replace' to change the prim_path
     obstacle1: RigidObjectCfg = _base_obstacle
     obstacle2: RigidObjectCfg = replace( 
-        _base_obstacle, prim_path="/World/envs/env_.*/Obstacle2"),
+        _base_obstacle, prim_path="/World/envs/env_.*/Obstacle2"
     )
     obstacle3: RigidObjectCfg = replace(
-        _base_obstacle, prim_path="/World/envs/env_.*/Obstacle3"),
+        _base_obstacle, prim_path="/World/envs/env_.*/Obstacle3"
     )
     obstacle4: RigidObjectCfg = replace(
-        _base_obstacle, prim_path="/World/envs/env_.*/Obstacle4"),
+        _base_obstacle, prim_path="/World/envs/env_.*/Obstacle4"
     )
     obstacle5: RigidObjectCfg = replace(
-        _base_obstacle, prim_path="/World/envs/env_.*/Obstacle5"),
+        _base_obstacle, prim_path="/World/envs/env_.*/Obstacle5"
     )
     obstacle6: RigidObjectCfg = replace(
-        _base_obstacle, prim_path="/World/envs/env_.*/Obstacle6"),
+        _base_obstacle, prim_path="/World/envs/env_.*/Obstacle6"
     )
     obstacle7: RigidObjectCfg = replace(
-        _base_obstacle, prim_path="/World/envs/env_.*/Obstacle7"),
+        _base_obstacle, prim_path="/World/envs/env_.*/Obstacle7"
     )
     obstacle8: RigidObjectCfg = replace(
-        _base_obstacle, prim_path="/World/envs/env_.*/Obstacle8"),
+        _base_obstacle, prim_path="/World/envs/env_.*/Obstacle8"
     )
     obstacle9: RigidObjectCfg = replace(
-        _base_obstacle, prim_path="/World/envs/env_.*/Obstacle9"),
+        _base_obstacle, prim_path="/World/envs/env_.*/Obstacle9"
     )
     obstacle10: RigidObjectCfg = replace(
-        _base_obstacle, prim_path="/World/envs/env_.*/Obstacle10"),
+        _base_obstacle, prim_path="/World/envs/env_.*/Obstacle10"
     )
 
     #robot
