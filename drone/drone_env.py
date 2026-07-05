@@ -1,6 +1,6 @@
 from __future__ import annotations
 import torch
-from isaaclab.markers import VisualizationMarkers
+from isaaclab.markers import VisualizationMarkers, VisualizationMarkersCfg
 import isaaclab.sim as sim_utils
 from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR
 from isaaclab.envs import DirectRLEnv
