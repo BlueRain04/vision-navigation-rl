@@ -9,6 +9,7 @@ from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR
 from dataclasses import replace
 from isaaclab_assets import CRAZYFLIE_CFG
 from isaaclab.sensors import TiledCameraCfg, ContactSensorCfg
+import random
 
 @configclass
 class DroneNavEnvCfg(DirectRLEnvCfg):
@@ -17,8 +18,8 @@ class DroneNavEnvCfg(DirectRLEnvCfg):
     episode_length_s = 10.0
     action_space = 4
     history_len = 3 #number of frames to stack
-    #3 channels (RGB) + 4 channels (goal vector X, Y, Z, dist expanded) = 7
-    num_channels = 7 #could be 6 if Z axis not included!
+    #4 (RGB+depth) + 4 (goal state) = 8
+    num_channels = 8
     observation_space = gym.spaces.Box( #will be modified once the RL agent is ready
         low=0, high=255, 
         shape=(history_len, 64, 64, num_channels),
@@ -57,19 +58,15 @@ class DroneNavEnvCfg(DirectRLEnvCfg):
     )
 
     #lighting
-    #!improvement: we can add random lighting!"
-    #last run this was error fix it now since it affects the CNN performance
     sky_light = AssetBaseCfg( 
         prim_path="/World/skyLight",
         spawn=sim_utils.DomeLightCfg( #apply dome light
             intensity=1000.0,
-            texture_file=f"{ISAAC_NUCLEUS_DIR}/Materials/Textures/Skies/PolyHave\
-            n/kloofendal_43d_clear_puresky_4k.hdr", #to make it more natural
+            color=(0.75, 0.75, 0.75),
         ),
     )
 
     #obstacles
-    #!improvement: we can add random numbers of the size and radius!"
     #base configuration for one obstacle
     _base_obstacle = RigidObjectCfg( 
         prim_path="/World/envs/env_.*/Obstacle1",
@@ -107,34 +104,33 @@ class DroneNavEnvCfg(DirectRLEnvCfg):
     )
 
     #define 10 distinct obstacles using 'replace' to change the prim_path
-    #!improvement: we can add random numbers of the initial position!"
     obstacle1: RigidObjectCfg = _base_obstacle
     obstacle2: RigidObjectCfg = replace( 
-        _base_obstacle, prim_path="/World/envs/env_.*/Obstacle2", init_state=RigidObjectCfg.InitialStateCfg(pos=(-3.0, 6.0, 1.0)),
+        _base_obstacle, prim_path="/World/envs/env_.*/Obstacle2"),
     )
     obstacle3: RigidObjectCfg = replace(
-        _base_obstacle, prim_path="/World/envs/env_.*/Obstacle3", init_state=RigidObjectCfg.InitialStateCfg(pos=(5.0, -2.0, 1.0)),
+        _base_obstacle, prim_path="/World/envs/env_.*/Obstacle3"),
     )
     obstacle4: RigidObjectCfg = replace(
-        _base_obstacle, prim_path="/World/envs/env_.*/Obstacle4", init_state=RigidObjectCfg.InitialStateCfg(pos=(-6.0, -4.0, 1.0)),
+        _base_obstacle, prim_path="/World/envs/env_.*/Obstacle4"),
     )
     obstacle5: RigidObjectCfg = replace(
-        _base_obstacle, prim_path="/World/envs/env_.*/Obstacle5", init_state=RigidObjectCfg.InitialStateCfg(pos=(-3.0, 6.0, 1.0)),
+        _base_obstacle, prim_path="/World/envs/env_.*/Obstacle5"),
     )
     obstacle6: RigidObjectCfg = replace(
-        _base_obstacle, prim_path="/World/envs/env_.*/Obstacle6", init_state=RigidObjectCfg.InitialStateCfg(pos=(6.0, 3.0, 1.0)),
+        _base_obstacle, prim_path="/World/envs/env_.*/Obstacle6"),
     )
     obstacle7: RigidObjectCfg = replace(
-        _base_obstacle, prim_path="/World/envs/env_.*/Obstacle7", init_state=RigidObjectCfg.InitialStateCfg(pos=(-4.0, 3.0, 1.0)),
+        _base_obstacle, prim_path="/World/envs/env_.*/Obstacle7"),
     )
     obstacle8: RigidObjectCfg = replace(
-        _base_obstacle, prim_path="/World/envs/env_.*/Obstacle8", init_state=RigidObjectCfg.InitialStateCfg(pos=(4.0, 5.0, 1.0)),
+        _base_obstacle, prim_path="/World/envs/env_.*/Obstacle8"),
     )
     obstacle9: RigidObjectCfg = replace(
-        _base_obstacle, prim_path="/World/envs/env_.*/Obstacle9", init_state=RigidObjectCfg.InitialStateCfg(pos=(-3.0, 4.0, 1.0)),
+        _base_obstacle, prim_path="/World/envs/env_.*/Obstacle9"),
     )
     obstacle10: RigidObjectCfg = replace(
-        _base_obstacle, prim_path="/World/envs/env_.*/Obstacle10", init_state=RigidObjectCfg.InitialStateCfg(pos=(5.0, -3.0, 1.0)),
+        _base_obstacle, prim_path="/World/envs/env_.*/Obstacle10"),
     )
 
     #robot
@@ -148,11 +144,10 @@ class DroneNavEnvCfg(DirectRLEnvCfg):
     moment_scale = [1.25, 1.92, 0.154] #it's the [roll, pitch, yaw]
 
     #sensors
-    #!improvement: we can add "distance_to_image_plane" with rgb to catch the depth as well!"
     tiled_camera: TiledCameraCfg = TiledCameraCfg( #attaching one camera to each robot
         prim_path="/World/envs/env_.*/Robot/body/camera",
         offset=TiledCameraCfg.OffsetCfg(pos=(0.05, 0.0, 0.0), rot=(1.0, 0.0, 0.0, 0.0), convention="ros"), #posistion of the camera relative to the body, no rotation
-        data_types=["rgb"], #returning color image
+        data_types=["rgb", "distance_to_image_plane"], #returning color image
         spawn=sim_utils.PinholeCameraCfg(
         focal_length=24.0, #contrlos the FOV (field of view)
         horizontal_aperture=20.955, #physical width of the camera "pre-defined"
