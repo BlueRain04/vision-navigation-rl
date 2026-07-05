@@ -9,7 +9,6 @@ from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR
 from dataclasses import replace
 from isaaclab_assets import CRAZYFLIE_CFG
 from isaaclab.sensors import TiledCameraCfg, ContactSensorCfg
-import torch
 
 @configclass
 class DroneNavEnvCfg(DirectRLEnvCfg):
@@ -161,15 +160,6 @@ class DroneNavEnvCfg(DirectRLEnvCfg):
         ),
         width=64, #image resolution
         height=64,
-    )
-
-    contact_sensor_body: ContactSensorCfg = ContactSensorCfg( #check
-        prim_path="/World/envs/env_.*/Robot/body", #the body might be wrong!
-        history_length=1,
-        track_air_time=False,
-        update_period=0.0,
-        debug_vis=True,
-        filter_prim_paths_expr=filter_to_obstacle,
     )
 
     #rewards / logic
