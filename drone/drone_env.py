@@ -46,7 +46,7 @@ def terminate_on_contact(env,
     return term
 
 def define_markers() -> VisualizationMarkers:
-    marker_cfg = VisualizationMarkers(
+    marker_cfg = VisualizationMarkersCfg(
         prim_path="/Visuals/myMarkers",
         markers={
             "forward": sim_utils.UsdFileCfg(
