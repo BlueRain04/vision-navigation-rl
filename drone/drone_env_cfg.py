@@ -157,6 +157,11 @@ class QuadcopterEnvCfg(DirectRLEnvCfg):
         height=64,
     )
 
+    contact_forces_LF = ContactSensorCfg( #check
+        prim_path="{ENV_REGEX_NS}/Robot/body",
+        update_period=0.0,
+    )
+
     #rewards / logic
     target_reach_threshold = 0.4
     lin_vel_reward_scale = -0.05
