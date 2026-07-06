@@ -147,7 +147,9 @@ class QuadcopterEnv(DirectRLEnv):
         self.obstacle = RigidObject(combined_obs_cfg)
         self.scene.rigid_objects["obstacle"] = self.obstacle #add the obs in the scene
         self.robot_camera = TiledCamera(self.cfg.tiled_camera) #get the camera's data from cfg
+        self.contact_body = ContactSensor(self.cfg.contact_sensor_body)
         self.scene.sensors["tiled_camera"] = self.robot_camera #add the camera in the scene
+        self.scene.sensors["contact_sensor_body"] = self.contact_body
         if self.device == "cpu": #manual filtring for CPU
             self.scene.filter_collisions(global_prim_paths=[self.cfg.terrain.prim_path])
 
