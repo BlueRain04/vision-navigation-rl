@@ -12,7 +12,7 @@ from isaaclab.sensors import TiledCameraCfg, ContactSensorCfg
 import random
 
 @configclass
-class DroneNavEnvCfg(DirectRLEnvCfg):
+class QuadcopterEnvCfg(DirectRLEnvCfg):
     #environment
     decimation = 2
     episode_length_s = 10.0
