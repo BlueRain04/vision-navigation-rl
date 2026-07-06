@@ -108,10 +108,12 @@ class QuadcopterEnv(DirectRLEnv):
         self._robot = Articulation(self.cfg.robot) #get the robot from the cfg
         self.scene.articulations["robot"] = self._robot #add the robot to the scene
         self.cfg.terrain.spawn.func(self.cfg.terrain.prim_path, self.cfg.terrain.spawn) #create the terrain in the env
-        if hasattr(self.cfg, "sky_light") and self.cfg.sky_light is not None:
+        if hasattr(self.cfg, "sky_light") and self.cfg.sky_light is not None: #add the lightning
             self.cfg.sky_light.spawn.func(
                 self.cfg.sky_light.prim_path, self.cfg.sky_light.spawn
             )
+        self.scene.clone_environments(copy_from_source=False) #some of the envs in the eps inherit from each other for fast training
+        #add the obstacles
         obs_configs = [
             self.cfg.obstacle1,
             self.cfg.obstacle2,
@@ -135,27 +137,23 @@ class QuadcopterEnv(DirectRLEnv):
             self.cfg.obstacle1, prim_path="/World/envs/env_.*/Obstacle.*"
         )
         self.obstacle = RigidObject(combined_obs_cfg)
-        self.robot_camera = TiledCamera(self.cfg.tiled_camera)
-        self.contact_body = ContactSensor(self.cfg.contact_sensor_body)
-        self.scene.articulations["robot"] = self._robot
-        self.scene.rigid_objects["obstacle"] = self.obstacle
-        self.scene.sensors["tiled_camera"] = self.robot_camera
-        self.scene.sensors["contact_sensor_body"] = self.contact_body
-        self.scene.clone_environments(copy_from_source=False) #some of the envs in the eps inherit from each other for fast training
+        self.scene.rigid_objects["obstacle"] = self.obstacle #add the obs in the scene
+        self.robot_camera = TiledCamera(self.cfg.tiled_camera) #get the camera's data from cfg
+        self.scene.sensors["tiled_camera"] = self.robot_camera #add the camera in the scene
         if self.device == "cpu": #manual filtring for CPU
             self.scene.filter_collisions(global_prim_paths=[self.cfg.terrain.prim_path])
 
-    def _get_goal_vec(self):
+    def _get_goal_vec(self): #I think it's for simplisity
         return self.target_pos - self._robot.data.root_pos_w
     
     def _pre_physics_step(self, actions: torch.Tensor) -> None:
-        self._actions = actions.clone().clamp(-1.0, 1.0)
-        self._thrust[:, 0, 2] = self.cfg.thrust_to_weight * self._robot_weight * (self._actions[:, 0] + 1.0) / 2.0
-        self._moment[:, 0, :] = self.cfg.moment_scale * self._actions[:, 1:]
-        self.goal_marker.visualize(self.target_pos)
-        self._visualize_arrows()
+        self._actions = actions.clone().clamp(-1.0, 1.0) #clone the action for independent memory then clip it
+        self._thrust[:, 0, 2] = self.cfg.thrust_to_weight * self._robot_weight * (self._actions[:, 0] + 1.0) / 2.0 #get the thrust action range [-1, 1] and map it to [0, 1] to apply in simulator, assign it as Z force since X Y are not applicable
+        self._moment[:, 0, :] = self._moment_scale * self._actions[:, 1:] #take the roll, pitch, and yas from action scale them then add to moment tensor
+        self.goal_marker.visualize(self.target_pos) #check
+        self._visualize_arrows() #check
 
-    def _visualize_arrows(self):
+    def _visualize_arrows(self): #check
         goal_vec = self._get_goal_vec()
         command_yaws = torch.atan2(goal_vec[:, 1], goal_vec[:, 0])
         command_rot = math_utils.quat_from_angle_axis(command_yaws, self.up_dir)
