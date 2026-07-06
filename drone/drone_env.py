@@ -19,16 +19,16 @@ def contact_penalty(env,
     Penalize collisions with obstacles using filtered contact sensors.
     Uses force_matrix_w: (E, B, F, 3). Returns (E,) in [-1, 1].
     """
-    total_penalty = torch.zeros(env.num_envs, device=env.device)
-    sensor = env.scene.sensors.get(contact_sensor_name, None)
+    total_penalty = torch.zeros(env.num_envs, device=env.device) 
+    sensor = env.scene.sensors.get(contact_sensor_name, None) #get the body sensor from the scene
     if sensor is None:
         return total_penalty
-    fm = getattr(sensor.data, "force_matrix_w", None)
+    fm = getattr(sensor.data, "force_matrix_w", None) #get the force matrix attribute
     if isinstance(fm, torch.Tensor) and fm.numel() > 0:
-        strength = torch.norm(fm, dim=-1).amax(dim=(1, 2))
-        excess = torch.clamp(strength - threshold, min = 0.0)
+        strength = torch.norm(fm, dim=-1).amax(dim=(1, 2)) #for every env find the force
+        excess = torch.clamp(strength - threshold, min = 0.0) #if the force is higher than a threshold then add to excess
         total_penalty += excess
-    return torch.tanh(total_penalty)
+    return torch.tanh(total_penalty) #mapping to [-1, 1]
 
 def terminate_on_contact(env,
     contact_sensor_name: str,
@@ -36,7 +36,7 @@ def terminate_on_contact(env,
     ) -> torch.Tensor:
     """Terminate ONLY if filtered obstacle contacts exceed threshold."""
     term = torch.zeros(env.num_envs, dtype=torch.bool, device=env.device)
-    sensor = env.scene.sensors.get(contact_sensor_name, None)
+    sensor = env.scene.sensors.get(contact_sensor_name, None) #get the body sensor from the scene
     if sensor is None:
         return term
     fm = getattr(sensor.data, "force_matrix_w", None)
@@ -86,15 +86,16 @@ class QuadcopterEnv(DirectRLEnv):
 
     def __init__(self, cfg: QuadcopterEnvCfg, render_mode: str | None = None, **kwargs): #need to add the contact sensor
         super().__init__(cfg, render_mode, **kwargs)
-        self._camera_hist: torch.Tensor | None = None #start the sps with None camera hist, later could be a tensor
+        self._rgb_hist: torch.Tensor | None = None #start the sps with None camera hist, later could be a tensor
+        self._depth_hist: torch.Tensor | None = None #start the sps with None camera hist, later could be a tensor
         self.history_len = cfg.history_len
         self.num_obstacles = 10
         self.target_pos = torch.zeros((self.num_envs, 3), device=self.device)
-        self.prev_dist = torch.zeros((self.num_envs,), device=self.device) #check
-        self.arrows = define_markers() #check later
-        self.arrows.set_visibility(True) #check later
-        self.goal_marker = define_goal_marker() #check later
-        self.goal_marker.set_visibility(True) #check later
+        self.prev_dist = torch.zeros((self.num_envs,), device=self.device)
+        self.arrows = define_markers()
+        self.arrows.set_visibility(True)
+        self.goal_marker = define_goal_marker()
+        self.goal_marker.set_visibility(True)
         self._body_id = self._robot.find_bodies("body")[0] #this is linked to the camera, make sure that the crazyflie has body index
         self._robot_mass = self._robot.root_physx_view.get_masses()[0].sum() #get the robot mass
         self._gravity_magnitude = torch.tensor(self.sim.cfg.gravity, device=self.device).norm() #get the gravity
@@ -156,17 +157,17 @@ class QuadcopterEnv(DirectRLEnv):
         if self.device == "cpu": #manual filtring for CPU
             self.scene.filter_collisions(global_prim_paths=[self.cfg.terrain.prim_path])
 
-    def _get_goal_vec(self): #I think it's for simplisity
+    def _get_goal_vec(self):
         return self.target_pos - self._robot.data.root_pos_w
     
     def _pre_physics_step(self, actions: torch.Tensor) -> None:
         self._actions = actions.clone().clamp(-1.0, 1.0) #clone the action for independent memory then clip it
         self._thrust[:, 0, 2] = self.cfg.thrust_to_weight * self._robot_weight * (self._actions[:, 0] + 1.0) / 2.0 #get the thrust action range [-1, 1] and map it to [0, 1] to apply in simulator, assign it as Z force since X Y are not applicable
         self._moment[:, 0, :] = self._moment_scale * self._actions[:, 1:] #take the roll, pitch, and yas from action scale them then add to moment tensor
-        self.goal_marker.visualize(self.target_pos) #check
-        self._visualize_arrows() #check
+        self.goal_marker.visualize(self.target_pos)
+        self._visualize_arrows()
 
-    def _visualize_arrows(self): #check
+    def _visualize_arrows(self):
         goal_vec = self._get_goal_vec()
         command_yaws = torch.atan2(goal_vec[:, 1], goal_vec[:, 0])
         command_rot = math_utils.quat_from_angle_axis(command_yaws, self.up_dir)
@@ -203,69 +204,69 @@ class QuadcopterEnv(DirectRLEnv):
         self.contact_body.update(dt=dt)
 
         camera_data_rgb = self.robot_camera.data.output["rgb"].float() / 255.0
-        camera_data_depth = self.robot_camera.data.output["distance_to_image_plane"].float() #needs a way to normalize the depth!
+        camera_data_depth = self.robot_camera.data.output["distance_to_image_plane"].float()
+        camera_data_depth = torch.clamp(camera_data_depth, 0.0, 20.0)
+        camera_data_depth = camera_data_depth / 20.0
         #we need to change this and add the depth
-        if self._camera_hist is None: #if this is the first frame
-            self._camera_hist = (
+        if self._rgb_hist is None: #if this is the first frame
+            self._rgb_hist = (
                 camera_data_rgb.unsqueeze(1)
                 .repeat(1, self.history_len, 1, 1, 1) #wait to add the other two frames
                 .contiguous()
             )
         else:
-            new_frame = camera_data.unsqueeze(1)
-            self._camera_hist = torch.cat(
-                [self._camera_hist[:, 1:], new_frame], dim=1
+            new_frame = camera_data_rgb.unsqueeze(1)
+            self._rgb_hist = torch.cat(
+                [self._rgb_hist[:, 1:], new_frame], dim=1
+            )
+        if self._depth_hist is None: #if this is the first frame
+            self._depth_hist = (
+                camera_data_depth.unsqueeze(1)
+                .repeat(1, self.history_len, 1, 1, 1) #wait to add the other two frames
+                .contiguous()
+            )
+        else:
+            new_frame = camera_data_depth.unsqueeze(1)
+            self._depth_hist = torch.cat(
+                [self._depth_hist[:, 1:], new_frame], dim=1
             )
 
-        N, T, H, W, _ = self._camera_hist.shape
+        N, T, H, W, _ = self._rgb_hist.shape
 
         goal_vec = self._get_goal_vec()
         goal_dist = torch.linalg.norm(goal_vec, dim=-1, keepdim=True)
         unit_goal = goal_vec / (goal_dist + 1e-6)
 
         state_input = torch.hstack((unit_goal, goal_dist))
-        state_expanded = state_input[:, None, None, None, :].expand(N, T, H, W, 4)
-
-        obs_combined = torch.cat([self._camera_hist.clone(), state_expanded], dim=-1)
-        return {"policy": obs_combined}
+        
+        return {"policy": {
+            "rgb": self._rgb_hist,
+            "depth": self._depth_hist,
+            "state": state_input,
+        }} #what the model recives
     
     def _get_rewards(self) -> torch.Tensor:
         #1 velocity
         ang_vel = torch.sum(torch.square(self._robot.data.root_ang_vel_b), dim=1)
+        
+        #2 close to goal
         robot_lin_vel = self._robot.data.root_lin_vel_w[:, :3]
         goal_vec = self._get_goal_vec()
         goal_dir = goal_vec / (torch.norm(goal_vec, dim=-1, keepdim=True) + 1e-6)
         velocity_proj = torch.sum(robot_lin_vel * goal_dir, dim=-1)
         progress_reward = velocity_proj * 2.5
 
-        #2 distance reward
+        #3 distance reward
         dist = torch.linalg.norm(goal_vec, dim=-1)
         dist_delta = self.prev_dist - dist
         self.prev_dist = dist.clone()
-        #dist_reward = dist_delta * 0.5
 
-        #3 collision penalty
+        #4 collision penalty
         collision_val = contact_penalty(self, "contact_sensor_body", threshold=0.1)
 
-        # success
+        #5 success
         reached = dist < self.cfg.target_reach_threshold
-        success_reward = reached.float() * 100.0
-
-        #angle alignment reward
-        #self._forward_vec_b = torch.tensor([1.0, 0.0, 0.0], device=self.device).repeat(self.num_envs, 1)
-        #forwards = math_utils.quat_apply(self._robot.data.root_quat_w,
-                                        #self._forward_vec_b)
-        
-        #goal_vec = self._get_goal_vec()
-        #goal_dir = goal_vec / (torch.norm(goal_vec, dim=-1, keepdim=True) + 1e-6)
-
-        #alignment = torch.sum(forwards * goal_dir, dim=-1)            
-        #alignment_reward = alignment * 0.5
-
-        #ang_vel_penalty = torch.sum(self._robot.data.root_ang_vel_b ** 2,dim=-1)
-
-        #ang_vel_scale = -0.01
-        #ang_vel_penalty *= ang_vel_scale                
+        success_reward = reached.float() * 100.0              
 
         rewards = {
             "ang_vel": ang_vel * self.cfg.ang_vel_reward_scale * self.step_dt,
@@ -311,8 +312,11 @@ class QuadcopterEnv(DirectRLEnv):
 
         self._robot.write_root_state_to_sim(root_state, env_ids) #check
 
-        if self._camera_hist is not None: #reset camera
-            self._camera_hist[env_ids] = 0.0
+        if self._rgb_hist is not None: #reset camera
+            self._rgb_hist[env_ids] = 0.0
+            
+        if self._depth_hist is not None: #reset camera
+            self._depth_hist[env_ids] = 0.0
 
         #reset goal
         goal_radii = torch.empty(num_resets, device=self.device).uniform_(3.5, 5.0) #sample each goal in envs a distance from the origin
@@ -354,7 +358,7 @@ class QuadcopterEnv(DirectRLEnv):
             positions: list[tuple[torch.Tensor, torch.Tensor, torch.Tensor]] = []
 
             for _ in range(self.num_obstacles):
-                while True: #colud be imroved with victorization!
+                while True: #colud be improved with victorization!
                     radius = (
                         torch.rand((), device=self.device) * (3.0 - 1.5) + 1.5
                     )
