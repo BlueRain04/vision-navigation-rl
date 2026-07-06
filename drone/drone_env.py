@@ -106,9 +106,11 @@ class QuadcopterEnv(DirectRLEnv):
         self._episode_sums = {
             key: torch.zeros(self.num_envs, dtype=torch.float, device=self.device)
             for key in [
-                "lin_vel",
                 "ang_vel",
-                "distance_to_goal",
+                "collision_reward",
+                "dist_delta",
+                "progress_reward",
+                "success_reward"
             ]
         }
 
@@ -120,7 +122,7 @@ class QuadcopterEnv(DirectRLEnv):
             self.cfg.sky_light.spawn.func(
                 self.cfg.sky_light.prim_path, self.cfg.sky_light.spawn
             )
-        self.scene.clone_environments(copy_from_source=False) #some of the envs in the eps inherit from each other for fast training
+            
         #add the obstacles
         obs_configs = [
             self.cfg.obstacle1,
@@ -150,6 +152,7 @@ class QuadcopterEnv(DirectRLEnv):
         self.contact_body = ContactSensor(self.cfg.contact_sensor_body)
         self.scene.sensors["tiled_camera"] = self.robot_camera #add the camera in the scene
         self.scene.sensors["contact_sensor_body"] = self.contact_body
+        self.scene.clone_environments(copy_from_source=False) #some of the envs in the eps inherit from each other for fast training
         if self.device == "cpu": #manual filtring for CPU
             self.scene.filter_collisions(global_prim_paths=[self.cfg.terrain.prim_path])
 
@@ -201,10 +204,10 @@ class QuadcopterEnv(DirectRLEnv):
 
         camera_data_rgb = self.robot_camera.data.output["rgb"].float() / 255.0
         camera_data_depth = self.robot_camera.data.output["distance_to_image_plane"].float() #needs a way to normalize the depth!
-        #we need to change this part for the depth and rgb
+        #we need to change this and add the depth
         if self._camera_hist is None: #if this is the first frame
             self._camera_hist = (
-                camera_data.unsqueeze(1)
+                camera_data_rgb.unsqueeze(1)
                 .repeat(1, self.history_len, 1, 1, 1) #wait to add the other two frames
                 .contiguous()
             )
@@ -238,7 +241,7 @@ class QuadcopterEnv(DirectRLEnv):
         #2 distance reward
         dist = torch.linalg.norm(goal_vec, dim=-1)
         dist_delta = self.prev_dist - dist
-        #self.prev_dist = dist.clone()
+        self.prev_dist = dist.clone()
         #dist_reward = dist_delta * 0.5
 
         #3 collision penalty
