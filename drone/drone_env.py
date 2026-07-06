@@ -4,7 +4,7 @@ from isaaclab.markers import VisualizationMarkers, VisualizationMarkersCfg
 import isaaclab.sim as sim_utils
 from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR
 from isaaclab.envs import DirectRLEnv
-from .drone_env_cfg import DroneNavEnvCfg
+from .drone_env_cfg import QuadcopterEnvCfg
 from isaaclab.assets import Articulation, RigidObject
 from dataclasses import replace
 from isaaclab.sensors import TiledCamera, ContactSensor
