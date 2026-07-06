@@ -157,9 +157,13 @@ class QuadcopterEnvCfg(DirectRLEnvCfg):
         height=64,
     )
 
-    contact_sensor_body = ContactSensorCfg( #check
-        prim_path="{ENV_REGEX_NS}/Robot/body",
+    contact_sensor_body: ContactSensorCfg = ContactSensorCfg(
+        prim_path="/World/envs/env_.*/Robot/body",
+        history_length=1,
+        track_air_time=False,
         update_period=0.0,
+        debug_vis=True,
+        filter_prim_paths_expr=filter_to_obstacle,
     )
 
     #rewards / logic
