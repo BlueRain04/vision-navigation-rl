@@ -18,8 +18,8 @@ class QuadcopterEnvCfg(DirectRLEnvCfg):
     episode_length_s = 10.0
     action_space = 4
     history_len = 3 #number of frames to stack
-    #4 (RGB+depth) + 4 (goal state) = 8
-    num_channels = 8
+    #2 (RGB) + 4 (goal state) = 7
+    num_channels = 7
     observation_space = gym.spaces.Box( #will be modified once the RL agent is ready
         low=0, high=255, 
         shape=(history_len, 64, 64, num_channels),
