@@ -84,7 +84,7 @@ def define_goal_marker():
 class QuadcopterEnv(DirectRLEnv):
     cfg: QuadcopterEnvCfg
 
-    def __init__(self, cfg: QuadcopterEnvCfg, render_mode: str | None = None, **kwargs):
+    def __init__(self, cfg: QuadcopterEnvCfg, render_mode: str | None = None, **kwargs): #need to add the contact sensor
         super().__init__(cfg, render_mode, **kwargs)
         self._camera_hist: torch.Tensor | None = None #start the sps with None camera hist, later could be a tensor
         self.history_len = cfg.history_len
@@ -104,7 +104,7 @@ class QuadcopterEnv(DirectRLEnv):
         self._moment_scale = torch.as_tensor(self.cfg.moment_scale, dtype=torch.float32, device=self.device) #get the moment scale from cfg and make it a tensor
         self.up_dir = torch.tensor([0.0, 0.0, 1.0], device=self.device) #check
 
-    def _setup_scene(self):
+    def _setup_scene(self): #need to add the contact sensor
         self._robot = Articulation(self.cfg.robot) #get the robot from the cfg
         self.scene.articulations["robot"] = self._robot #add the robot to the scene
         self.cfg.terrain.spawn.func(self.cfg.terrain.prim_path, self.cfg.terrain.spawn) #create the terrain in the env
@@ -216,7 +216,7 @@ class QuadcopterEnv(DirectRLEnv):
         return {"policy": obs_combined}
     
     def _get_rewards(self) -> torch.Tensor:
-        #velocity
+        #1 velocity
         lin_vel = torch.sum(torch.square(self._robot.data.root_lin_vel_b), dim=1)
         ang_vel = torch.sum(torch.square(self._robot.data.root_ang_vel_b), dim=1)
         #robot_lin_vel = self._robot.data.root_lin_vel_w[:, :3]
@@ -225,68 +225,69 @@ class QuadcopterEnv(DirectRLEnv):
         #velocity_proj = torch.sum(robot_lin_vel * goal_dir, dim=-1)
         #progress_reward = velocity_proj * 2.5
 
-        #B delta distance reward
-        dist = torch.linalg.norm(goal_vec, dim=-1)
-        dist_delta = self.prev_dist - dist
-        self.prev_dist = dist.clone()
-        dist_reward = dist_delta * 0.5
+        #2 distance reward
+        distance_to_goal = torch.linalg.norm(self._desired_pos_w - self._robot.data.root_pos_w, dim=1)
+        distance_to_goal_mapped = 1 - torch.tanh(distance_to_goal / 0.8)
+        #dist = torch.linalg.norm(goal_vec, dim=-1)
+        #dist_delta = self.prev_dist - dist
+        #self.prev_dist = dist.clone()
+        #dist_reward = dist_delta * 0.5
 
-        #C collision penalty
+        #3 collision penalty
         collision_val = contact_penalty(self, "contact_sensor_body", threshold=0.1)
-        collision_reward = collision_val * -5.0
 
-        #D success
-        reached = dist < self.cfg.target_reach_threshold
-        success_reward = reached.float() * 100.0
+        # success
+        #reached = dist < self.cfg.target_reach_threshold
+        #success_reward = reached.float() * 100.0
 
         #angle alignment reward
-        self._forward_vec_b = torch.tensor([1.0, 0.0, 0.0], device=self.device).repeat(self.num_envs, 1)
-        forwards = math_utils.quat_apply(self._robot.data.root_quat_w,
-                                        self._forward_vec_b)
+        #self._forward_vec_b = torch.tensor([1.0, 0.0, 0.0], device=self.device).repeat(self.num_envs, 1)
+        #forwards = math_utils.quat_apply(self._robot.data.root_quat_w,
+                                        #self._forward_vec_b)
         
-        goal_vec = self._get_goal_vec()
-        goal_dir = goal_vec / (torch.norm(goal_vec, dim=-1, keepdim=True) + 1e-6)
+        #goal_vec = self._get_goal_vec()
+        #goal_dir = goal_vec / (torch.norm(goal_vec, dim=-1, keepdim=True) + 1e-6)
 
-        alignment = torch.sum(forwards * goal_dir, dim=-1)            
-        alignment_reward = alignment * 0.5
+        #alignment = torch.sum(forwards * goal_dir, dim=-1)            
+        #alignment_reward = alignment * 0.5
 
-        ang_vel_penalty = torch.sum(self._robot.data.root_ang_vel_b ** 2,dim=-1)
+        #ang_vel_penalty = torch.sum(self._robot.data.root_ang_vel_b ** 2,dim=-1)
 
-        ang_vel_scale = -0.01
-        ang_vel_penalty *= ang_vel_scale                
+        #ang_vel_scale = -0.01
+        #ang_vel_penalty *= ang_vel_scale                
 
-        rewards = (
+        rewards = {
             "lin_vel": lin_vel * self.cfg.lin_vel_reward_scale * self.step_dt,
-            "ang_vel": ang_vel * self.cfg.ang_vel_reward_scale * self.step_dt
-            dist_reward +
-            alignment_reward +
-            collision_reward +
-            success_reward +
-            ang_vel_penalty
-        )
-        return total
+            "ang_vel": ang_vel * self.cfg.ang_vel_reward_scale * self.step_dt,
+            "distance_to_goal_mapped": distance_to_goal_mapped * self.cfg.distance_to_goal_reward_scale * self.step_dt,
+            "collision_reward": collision_val * -5.0,
+        }
+        reward = torch.sum(torch.stack(list(rewards.values())), dim=0)
+        for key, value in rewards.items():
+            self._episode_sums[key] += value
+        return reward
     
     def _get_dones(self) -> tuple[torch.Tensor, torch.Tensor]:
-        time_out = self.episode_length_buf >= (self.max_episode_length - 1)
+        time_out = self.episode_length_buf >= (self.max_episode_length - 1) #finish the eps when time ends
 
-        goal_vec = self._get_goal_vec()
-        dist = torch.linalg.norm(goal_vec, dim=-1)
-        reached = dist < self.cfg.target_reach_threshold
+        #goal_vec = self._get_goal_vec()
+        #dist = torch.linalg.norm(goal_vec, dim=-1)
+        reached = dist < self.cfg.target_reach_threshold #when robot reached the goal by threshold
 
-        crashed = terminate_on_contact(self, "contact_sensor_body", threshold=0.1)
+        crashed = terminate_on_contact(self, "contact_sensor_body", threshold=0.1) #when crashed with ods
 
         return (reached | crashed), time_out
     
-    def _reset_idx(self, env_ids: torch.Tensor | None):
-        if env_ids is None:
-            env_ids = self._robot._ALL_INDICES
-        num_resets = len(env_ids)
+    def _reset_idx(self, env_ids: torch.Tensor | None): #not all envs reset on the same time
+        if env_ids is None: #if all envs are done
+            env_ids = self._robot._ALL_INDICES #selecting all envs to reset
+        num_resets = len(env_ids) #check
 
         #reset robot
-        root_state = self._robot.data.default_root_state[env_ids].clone()
-        root_state[:, :3] += self.scene.env_origins[env_ids]
+        root_state = self._robot.data.default_root_state[env_ids].clone() #get a copy from the robot template
+        root_state[:, :3] += self.scene.env_origins[env_ids] #get the robot (X, Y, Z) position
 
-        #random yaw
+        #random yaw "check"
         rand_yaw = torch.zeros((num_resets, 3), device=self.device)
         rand_yaw[:, 2] = torch.rand(num_resets, device=self.device) * 2.0 * math.pi
 
@@ -296,28 +297,27 @@ class QuadcopterEnv(DirectRLEnv):
         root_state[:, 3:7] = quat
         root_state[:, 7:] = 0.0
 
-        self._robot.write_root_state_to_sim(root_state, env_ids)
-        self._robot.write_joint_state_to_sim(0.0, 0.0, env_ids=env_ids)
+        self._robot.write_root_state_to_sim(root_state, env_ids) #check
 
-        if self._camera_hist is not None:
+        if self._camera_hist is not None: #reset camera
             self._camera_hist[env_ids] = 0.0
 
         #reset goal
-        goal_radii = torch.empty(num_resets, device=self.device).uniform_(3.5, 5.0)
-        goal_thetas = torch.empty(num_resets, device=self.device).uniform_(
+        goal_radii = torch.empty(num_resets, device=self.device).uniform_(3.5, 5.0) #sample each goal in envs a distance from the origin
+        goal_thetas = torch.empty(num_resets, device=self.device).uniform_( #direction of the goal
             -math.pi, math.pi
         )
 
-        self.target_pos[env_ids, 0] = (
+        self.target_pos[env_ids, 0] = ( #goal X position
             self.scene.env_origins[env_ids, 0]
             + goal_radii * torch.cos(goal_thetas)
         )
-        self.target_pos[env_ids, 1] = (
+        self.target_pos[env_ids, 1] = ( #goal Y position
             self.scene.env_origins[env_ids, 1]
             + goal_radii * torch.sin(goal_thetas)
         )
-        goal_z = torch.empty(num_resets, device=self.device).uniform_(1.0, 3.0)
-        self.target_pos[env_ids, 2] = (
+        goal_z = torch.empty(num_resets, device=self.device).uniform_(1.0, 3.0) #might increase the Z to make it harder (also compared to obs)
+        self.target_pos[env_ids, 2] = ( #goal Z position
             self.scene.env_origins[env_ids, 2]
             + goal_z
         )
@@ -330,7 +330,7 @@ class QuadcopterEnv(DirectRLEnv):
         obs_base_ids = env_ids * self.num_obstacles
         all_obs_ids = torch.cat(
             [obs_base_ids + i for i in range(self.num_obstacles)], dim=0
-        )
+        ) #mapping each env with it's obs
         total_obs = len(all_obs_ids)
 
         positions_env: dict[int, list[tuple[torch.Tensor, torch.Tensor]]] = {}
@@ -342,7 +342,7 @@ class QuadcopterEnv(DirectRLEnv):
             positions: list[tuple[torch.Tensor, torch.Tensor, torch.Tensor]] = []
 
             for _ in range(self.num_obstacles):
-                while True:
+                while True: #colud be imroved with victorization!
                     radius = (
                         torch.rand((), device=self.device) * (3.0 - 1.5) + 1.5
                     )
@@ -355,15 +355,15 @@ class QuadcopterEnv(DirectRLEnv):
                     z = origin[2] + sample_z
 
                     #obstacle-origin spacing
-                    if torch.sqrt(
+                    if torch.sqrt( #obs must not be close to the origin "< 1.5"
                         (x - origin[0]) ** 2 + (y - origin[1]) ** 2 + (z - origin[2]) ** 2
                     ) < 1.5:
                         continue
                     #obstacle-goal spacing
-                    if torch.sqrt((x - goal[0]) ** 2 + (y - goal[1]) ** 2 + (z - goal[2]) ** 2) < 0.8:
+                    if torch.sqrt((x - goal[0]) ** 2 + (y - goal[1]) ** 2 + (z - goal[2]) ** 2) < 0.8: #must not block the goal
                         continue
 
-                    too_close = False
+                    too_close = False #must not overlap woth other obs
                     for (ox, oy, oz) in positions:
                         if torch.sqrt((x - ox) ** 2 + (y - oy) ** 2 + (z - oz) ** 2) < 0.8:
                             too_close = True
