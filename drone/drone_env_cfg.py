@@ -20,11 +20,11 @@ class QuadcopterEnvCfg(DirectRLEnvCfg):
     history_len = 3 #number of frames to stack
     #2 (RGB) + 4 (goal state) = 7
     num_channels = 7
-    observation_space = gym.spaces.Box( #will be modified once the RL agent is ready
-        low=0, high=255, 
-        shape=(history_len, 64, 64, num_channels),
-        dtype=float
-    )
+    observation_space = gym.spaces.Dict({
+        "rgb": gym.spaces.Box(low=0, high=1, shape=(history_len, 64, 64, 3), dtype=float),
+        "depth": gym.spaces.Box(low=0, high=1, shape=(history_len, 64, 64, 1), dtype=float),
+        "state": gym.spaces.Box(low=-float("inf"), high=float("inf"), shape=(4,), dtype=float),
+    })
     state_space = gym.spaces.Box(low=-float("inf"), high=float("inf"), shape=(0,)) #will be modified once the RL agent is ready
     filter_to_obstacle = [ #create 10 obstacles for each env
     f"/World/envs/env_.*/Obstacle{i}"
