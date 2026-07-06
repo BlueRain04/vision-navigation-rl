@@ -177,12 +177,12 @@ class QuadcopterEnv(DirectRLEnv):
             translations=locs, orientations=rots, marker_indices=indices
         )
         
-    def _apply_action(self):
-        self._robot.permanent_wrench_composer.set_forces_and_torques(
+    def _apply_action(self): #apply the action into the env
+        self._robot.set_external_force_and_torque(
             body_ids=self._body_id, forces=self._thrust, torques=self._moment
         )
 
-    def _get_observations(self) -> dict:
+    def _get_observations(self) -> dict: #later after RL
         self.robot_camera.update(dt=self.cfg.sim.dt * self.cfg.decimation)
 
         #update contact sensor
@@ -216,12 +216,14 @@ class QuadcopterEnv(DirectRLEnv):
         return {"policy": obs_combined}
     
     def _get_rewards(self) -> torch.Tensor:
-        #A projected velocity
-        robot_lin_vel = self._robot.data.root_lin_vel_w[:, :3]
-        goal_vec = self._get_goal_vec()
-        goal_dir = goal_vec / (torch.norm(goal_vec, dim=-1, keepdim=True) + 1e-6)
-        velocity_proj = torch.sum(robot_lin_vel * goal_dir, dim=-1)
-        progress_reward = velocity_proj * 2.5
+        #velocity
+        lin_vel = torch.sum(torch.square(self._robot.data.root_lin_vel_b), dim=1)
+        ang_vel = torch.sum(torch.square(self._robot.data.root_ang_vel_b), dim=1)
+        #robot_lin_vel = self._robot.data.root_lin_vel_w[:, :3]
+        #goal_vec = self._get_goal_vec()
+        #goal_dir = goal_vec / (torch.norm(goal_vec, dim=-1, keepdim=True) + 1e-6)
+        #velocity_proj = torch.sum(robot_lin_vel * goal_dir, dim=-1)
+        #progress_reward = velocity_proj * 2.5
 
         #B delta distance reward
         dist = torch.linalg.norm(goal_vec, dim=-1)
@@ -253,8 +255,9 @@ class QuadcopterEnv(DirectRLEnv):
         ang_vel_scale = -0.01
         ang_vel_penalty *= ang_vel_scale                
 
-        total = (
-            progress_reward +
+        rewards = (
+            "lin_vel": lin_vel * self.cfg.lin_vel_reward_scale * self.step_dt,
+            "ang_vel": ang_vel * self.cfg.ang_vel_reward_scale * self.step_dt
             dist_reward +
             alignment_reward +
             collision_reward +
