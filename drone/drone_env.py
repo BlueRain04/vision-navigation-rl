@@ -103,6 +103,14 @@ class QuadcopterEnv(DirectRLEnv):
         self._moment = torch.zeros(self.num_envs, 1, 3, device=self.device) #create the moment tensor
         self._moment_scale = torch.as_tensor(self.cfg.moment_scale, dtype=torch.float32, device=self.device) #get the moment scale from cfg and make it a tensor
         self.up_dir = torch.tensor([0.0, 0.0, 1.0], device=self.device) #check
+        self._episode_sums = {
+            key: torch.zeros(self.num_envs, dtype=torch.float, device=self.device)
+            for key in [
+                "lin_vel",
+                "ang_vel",
+                "distance_to_goal",
+            ]
+        }
 
     def _setup_scene(self): #need to add the contact sensor
         self._robot = Articulation(self.cfg.robot) #get the robot from the cfg
@@ -182,19 +190,20 @@ class QuadcopterEnv(DirectRLEnv):
             body_ids=self._body_id, forces=self._thrust, torques=self._moment
         )
 
-    def _get_observations(self) -> dict: #later after RL
-        self.robot_camera.update(dt=self.cfg.sim.dt * self.cfg.decimation)
+    def _get_observations(self) -> dict:
+        self.robot_camera.update(dt=self.cfg.sim.dt * self.cfg.decimation) #get the camera frame
 
         #update contact sensor
         dt = self.cfg.sim.dt * self.cfg.decimation
         self.contact_body.update(dt=dt)
 
-        camera_data = self.robot_camera.data.output["rgb"].float() / 255.0
-
-        if self._camera_hist is None:
+        camera_data_rgb = self.robot_camera.data.output["rgb"].float() / 255.0
+        camera_data_depth = self.robot_camera.data.output["distance_to_image_plane"].float() #needs a way to normalize the depth!
+        #we need to change this part for the depth and rgb
+        if self._camera_hist is None: #if this is the first frame
             self._camera_hist = (
                 camera_data.unsqueeze(1)
-                .repeat(1, self.history_len, 1, 1, 1)
+                .repeat(1, self.history_len, 1, 1, 1) #wait to add the other two frames
                 .contiguous()
             )
         else:
@@ -217,19 +226,16 @@ class QuadcopterEnv(DirectRLEnv):
     
     def _get_rewards(self) -> torch.Tensor:
         #1 velocity
-        lin_vel = torch.sum(torch.square(self._robot.data.root_lin_vel_b), dim=1)
         ang_vel = torch.sum(torch.square(self._robot.data.root_ang_vel_b), dim=1)
-        #robot_lin_vel = self._robot.data.root_lin_vel_w[:, :3]
-        #goal_vec = self._get_goal_vec()
-        #goal_dir = goal_vec / (torch.norm(goal_vec, dim=-1, keepdim=True) + 1e-6)
-        #velocity_proj = torch.sum(robot_lin_vel * goal_dir, dim=-1)
-        #progress_reward = velocity_proj * 2.5
+        robot_lin_vel = self._robot.data.root_lin_vel_w[:, :3]
+        goal_vec = self._get_goal_vec()
+        goal_dir = goal_vec / (torch.norm(goal_vec, dim=-1, keepdim=True) + 1e-6)
+        velocity_proj = torch.sum(robot_lin_vel * goal_dir, dim=-1)
+        progress_reward = velocity_proj * 2.5
 
         #2 distance reward
-        distance_to_goal = torch.linalg.norm(self._desired_pos_w - self._robot.data.root_pos_w, dim=1)
-        distance_to_goal_mapped = 1 - torch.tanh(distance_to_goal / 0.8)
-        #dist = torch.linalg.norm(goal_vec, dim=-1)
-        #dist_delta = self.prev_dist - dist
+        dist = torch.linalg.norm(goal_vec, dim=-1)
+        dist_delta = self.prev_dist - dist
         #self.prev_dist = dist.clone()
         #dist_reward = dist_delta * 0.5
 
@@ -237,8 +243,8 @@ class QuadcopterEnv(DirectRLEnv):
         collision_val = contact_penalty(self, "contact_sensor_body", threshold=0.1)
 
         # success
-        #reached = dist < self.cfg.target_reach_threshold
-        #success_reward = reached.float() * 100.0
+        reached = dist < self.cfg.target_reach_threshold
+        success_reward = reached.float() * 100.0
 
         #angle alignment reward
         #self._forward_vec_b = torch.tensor([1.0, 0.0, 0.0], device=self.device).repeat(self.num_envs, 1)
@@ -257,10 +263,11 @@ class QuadcopterEnv(DirectRLEnv):
         #ang_vel_penalty *= ang_vel_scale                
 
         rewards = {
-            "lin_vel": lin_vel * self.cfg.lin_vel_reward_scale * self.step_dt,
             "ang_vel": ang_vel * self.cfg.ang_vel_reward_scale * self.step_dt,
-            "distance_to_goal_mapped": distance_to_goal_mapped * self.cfg.distance_to_goal_reward_scale * self.step_dt,
             "collision_reward": collision_val * -5.0,
+            "dist_delta": dist_delta,
+            "progress_reward": progress_reward,
+            "success_reward": success_reward
         }
         reward = torch.sum(torch.stack(list(rewards.values())), dim=0)
         for key, value in rewards.items():
@@ -270,8 +277,8 @@ class QuadcopterEnv(DirectRLEnv):
     def _get_dones(self) -> tuple[torch.Tensor, torch.Tensor]:
         time_out = self.episode_length_buf >= (self.max_episode_length - 1) #finish the eps when time ends
 
-        #goal_vec = self._get_goal_vec()
-        #dist = torch.linalg.norm(goal_vec, dim=-1)
+        goal_vec = self._get_goal_vec()
+        dist = torch.linalg.norm(goal_vec, dim=-1)
         reached = dist < self.cfg.target_reach_threshold #when robot reached the goal by threshold
 
         crashed = terminate_on_contact(self, "contact_sensor_body", threshold=0.1) #when crashed with ods
