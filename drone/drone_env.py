@@ -81,35 +81,37 @@ def define_goal_marker():
     )
     return VisualizationMarkers(cfg)
 
-class DroneNavEnv(DirectRLEnv):
-    cfg: DroneNavEnvCfg
+class QuadcopterEnv(DirectRLEnv):
+    cfg: QuadcopterEnvCfg
 
-    def __init__(self, cfg: DroneNavEnvCfg, render_mode: str | None = None, **kwargs):
-        self._camera_hist: torch.Tensor | None = None
+    def __init__(self, cfg: QuadcopterEnvCfg, render_mode: str | None = None, **kwargs):
+        super().__init__(cfg, render_mode, **kwargs)
+        self._camera_hist: torch.Tensor | None = None #start the sps with None camera hist, later could be a tensor
         self.history_len = cfg.history_len
         self.num_obstacles = 10
-        super().__init__(cfg, render_mode, **kwargs)
         self.target_pos = torch.zeros((self.num_envs, 3), device=self.device)
-        self.prev_dist = torch.zeros((self.num_envs,), device=self.device)
-        self.arrows = define_markers()
-        self.arrows.set_visibility(True)
-        self.goal_marker = define_goal_marker()
-        self.goal_marker.set_visibility(True)
-        self._body_id = self._robot.find_bodies("body")[0]
-        self._robot_mass = self._robot.root_physx_view.get_masses()[0].sum()
-        self._gravity_magnitude = torch.tensor(self.sim.cfg.gravity, device=self.device).norm()
-        self._robot_weight = (self._robot_mass * self._gravity_magnitude).item()
-        self._thrust = torch.zeros(self.num_envs, 1, 3, device=self.device)
-        self._moment = torch.zeros(self.num_envs, 1, 3, device=self.device)
-        self.up_dir = torch.tensor([0.0, 0.0, 1.0], device=self.device)
+        self.prev_dist = torch.zeros((self.num_envs,), device=self.device) #check
+        self.arrows = define_markers() #check later
+        self.arrows.set_visibility(True) #check later
+        self.goal_marker = define_goal_marker() #check later
+        self.goal_marker.set_visibility(True) #check later
+        self._body_id = self._robot.find_bodies("body")[0] #this is linked to the camera, make sure that the crazyflie has body index
+        self._robot_mass = self._robot.root_physx_view.get_masses()[0].sum() #get the robot mass
+        self._gravity_magnitude = torch.tensor(self.sim.cfg.gravity, device=self.device).norm() #get the gravity
+        self._robot_weight = (self._robot_mass * self._gravity_magnitude).item() #get the robit weight
+        self._thrust = torch.zeros(self.num_envs, 1, 3, device=self.device) #create the thrust tensor
+        self._moment = torch.zeros(self.num_envs, 1, 3, device=self.device) #create the moment tensor
+        self._moment_scale = torch.as_tensor(self.cfg.moment_scale, dtype=torch.float32, device=self.device) #get the moment scale from cfg and make it a tensor
+        self.up_dir = torch.tensor([0.0, 0.0, 1.0], device=self.device) #check
 
     def _setup_scene(self):
-        self.cfg.terrain.spawn.func(self.cfg.terrain.prim_path, self.cfg.terrain.spawn)
+        self._robot = Articulation(self.cfg.robot) #get the robot from the cfg
+        self.scene.articulations["robot"] = self._robot #add the robot to the scene
+        self.cfg.terrain.spawn.func(self.cfg.terrain.prim_path, self.cfg.terrain.spawn) #create the terrain in the env
         if hasattr(self.cfg, "sky_light") and self.cfg.sky_light is not None:
             self.cfg.sky_light.spawn.func(
                 self.cfg.sky_light.prim_path, self.cfg.sky_light.spawn
             )
-        self._robot = Articulation(self.cfg.robot)
         obs_configs = [
             self.cfg.obstacle1,
             self.cfg.obstacle2,
@@ -139,7 +141,9 @@ class DroneNavEnv(DirectRLEnv):
         self.scene.rigid_objects["obstacle"] = self.obstacle
         self.scene.sensors["tiled_camera"] = self.robot_camera
         self.scene.sensors["contact_sensor_body"] = self.contact_body
-        self.scene.clone_environments(copy_from_source=True)
+        self.scene.clone_environments(copy_from_source=False) #some of the envs in the eps inherit from each other for fast training
+        if self.device == "cpu": #manual filtring for CPU
+            self.scene.filter_collisions(global_prim_paths=[self.cfg.terrain.prim_path])
 
     def _get_goal_vec(self):
         return self.target_pos - self._robot.data.root_pos_w
