@@ -44,10 +44,10 @@ class DroneSharedModel(GaussianMixin, DeterministicMixin, Model):
         )
                      
         self.cnn_depth = nn.Sequential(
-            nn.Conv2d(self.depth_ch, 16, kernel_size=5, stride=2), nn.BatchNorm2d(32), nn.ReLU(),  # 64 -> 30
-            nn.Conv2d(16, 32, kernel_size=5, stride=2), nn.BatchNorm2d(64), nn.ReLU(),           # 30 -> 13
-            nn.Conv2d(32, 64, kernel_size=4, stride=2), nn.BatchNorm2d(128), nn.ReLU(),         # 13 -> 5
-            nn.Conv2d(64, 128, kernel_size=3, stride=2), nn.BatchNorm2d(256), nn.ReLU(),        # 5 -> 2
+            nn.Conv2d(self.depth_ch, 16, kernel_size=5, stride=2), nn.BatchNorm2d(16), nn.ReLU(),  # 64 -> 30
+            nn.Conv2d(16, 32, kernel_size=5, stride=2), nn.BatchNorm2d(32), nn.ReLU(),           # 30 -> 13
+            nn.Conv2d(32, 64, kernel_size=4, stride=2), nn.BatchNorm2d(64), nn.ReLU(),         # 13 -> 5
+            nn.Conv2d(64, 128, kernel_size=3, stride=2), nn.BatchNorm2d(128), nn.ReLU(),        # 5 -> 2
             nn.Flatten()
         )
 
@@ -56,7 +56,7 @@ class DroneSharedModel(GaussianMixin, DeterministicMixin, Model):
             dummy_rgb = torch.zeros(1, self.rgb_ch, self.h_rgb, self.w_rgb)
             self.cnn_out_rgb = self.cnn_rgb(dummy_rgb).shape[1]
 
-         with torch.no_grad():
+        with torch.no_grad():
             dummy_depth = torch.zeros(1, self.depth_ch, self.h_depth, self.w_depth)
             self.cnn_out_depth = self.cnn_depth(dummy_depth).shape[1]
 
@@ -102,7 +102,7 @@ class DroneSharedModel(GaussianMixin, DeterministicMixin, Model):
         #state_vec = obs[:, 0, 0, 0, -self.state_ch:]  #shape (N, 4)
 
         #3 process images
-        cnn_feats = [] #not sure if we add the rgb and depth in cnn_feat for each time step (in history) or add all the rgb frames (3) then add the depth frames (3)...
+        cnn_feats = [] 
         for t in range(self.t_steps_rgb): #since t_steps_rgb == t_steps_depth
             #extract frame t: (N, H, W, 3)
             frame_rgb = rgb_stack[:, t, ...]
@@ -112,7 +112,6 @@ class DroneSharedModel(GaussianMixin, DeterministicMixin, Model):
             frame_depth = frame_depth.permute(0, 3, 1, 2)
             cnn_feats.append(self.cnn_rgb(frame_rgb))
             cnn_feats.append(self.cnn_depth(frame_depth))
-            cnn_feat
         
         #concatenate time steps: (N, T*CNN_Out)
         visual_emb = torch.cat(cnn_feats, dim=1)
