@@ -162,7 +162,7 @@ class QuadcopterEnvCfg(DirectRLEnvCfg):
         history_length=1,
         track_air_time=False,
         update_period=0.0,
-        debug_vis=True,
+        debug_vis=False,
         filter_prim_paths_expr=filter_to_obstacle,
     )
 
