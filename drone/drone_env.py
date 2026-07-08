@@ -149,9 +149,9 @@ class QuadcopterEnv(DirectRLEnv):
         )
         self.obstacle = RigidObject(combined_obs_cfg)
         self.scene.rigid_objects["obstacle"] = self.obstacle #add the obs in the scene
-        self.robot_camera = TiledCamera(self.cfg.tiled_camera) #get the camera's data from cfg
+      #  self.robot_camera = TiledCamera(self.cfg.tiled_camera) #get the camera's data from cfg
         self.contact_body = ContactSensor(self.cfg.contact_sensor_body)
-        self.scene.sensors["tiled_camera"] = self.robot_camera #add the camera in the scene
+      #  self.scene.sensors["tiled_camera"] = self.robot_camera #add the camera in the scene
         self.scene.sensors["contact_sensor_body"] = self.contact_body
         self.scene.clone_environments(copy_from_source=True) #some of the envs in the eps inherit from each other for fast training
         print(f"DEVICE CHECK: {self.device}")
@@ -239,12 +239,13 @@ class QuadcopterEnv(DirectRLEnv):
         unit_goal = goal_vec / (goal_dist + 1e-6)
 
         state_input = torch.hstack((unit_goal, goal_dist))
+        return {"policy": {"rgb": None, "depth": None, "state": None}}
         
-        return {"policy": {
-            "rgb": self._rgb_hist,
-            "depth": self._depth_hist,
-            "state": state_input,
-        }} #what the model recives
+        #return {"policy": {
+         #   "rgb": self._rgb_hist,
+         #   "depth": self._depth_hist,
+         #   "state": state_input,
+       # }} #what the model recives
     
     def _get_rewards(self) -> torch.Tensor:
         #1 velocity
