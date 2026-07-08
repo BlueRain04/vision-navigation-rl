@@ -28,7 +28,7 @@ if args_cli.video:
         "video_folder": "videos",
         "step_trigger": lambda step: step % args_cli.video_interval == 0,
         "video_length": args_cli.video_length,
-        disable_logger=True,
+        "disable_logger": True,
     }
     env = gym.wrappers.RecordVideo(env, **video_kwargs)
 env = SkrlVecEnvWrapper(env, ml_framework="torch")
