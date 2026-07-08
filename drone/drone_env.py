@@ -154,7 +154,8 @@ class QuadcopterEnv(DirectRLEnv):
         self.scene.sensors["tiled_camera"] = self.robot_camera #add the camera in the scene
         self.scene.sensors["contact_sensor_body"] = self.contact_body
         self.scene.clone_environments(copy_from_source=True) #some of the envs in the eps inherit from each other for fast training
-        if self.device == "cpu": #manual filtring for CPU
+        print(f"DEVICE CHECK: {self.device}")
+        if self.device == "cpu":
             self.scene.filter_collisions(global_prim_paths=[self.cfg.terrain.prim_path])
 
     def _get_goal_vec(self):
