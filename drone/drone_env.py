@@ -118,37 +118,37 @@ class QuadcopterEnv(DirectRLEnv):
     def _setup_scene(self): #need to add the contact sensor
         self._robot = Articulation(self.cfg.robot) #get the robot from the cfg
         self.scene.articulations["robot"] = self._robot #add the robot to the scene
-    #    self.cfg.terrain.spawn.func(self.cfg.terrain.prim_path, self.cfg.terrain.spawn) #create the terrain in the env
-     #   if hasattr(self.cfg, "sky_light") and self.cfg.sky_light is not None: #add the lightning
-     #       self.cfg.sky_light.spawn.func(
-        #        self.cfg.sky_light.prim_path, self.cfg.sky_light.spawn
-      #      )
+        self.cfg.terrain.spawn.func(self.cfg.terrain.prim_path, self.cfg.terrain.spawn) #create the terrain in the env
+        if hasattr(self.cfg, "sky_light") and self.cfg.sky_light is not None: #add the lightning
+            self.cfg.sky_light.spawn.func(
+                self.cfg.sky_light.prim_path, self.cfg.sky_light.spawn
+            )
             
         #add the obstacles
-        #obs_configs = [
-         #   self.cfg.obstacle1,
-         #   self.cfg.obstacle2,
-         #   self.cfg.obstacle3,
-        #    self.cfg.obstacle4,
-        #    self.cfg.obstacle5,
-        #    self.cfg.obstacle6,
-        #    self.cfg.obstacle7,
-        #    self.cfg.obstacle8,
-        #    self.cfg.obstacle9,
-        #    self.cfg.obstacle10,
-       # ]
-      #  for i, obs_cfg in enumerate(obs_configs, 1):
-       #     obs_cfg.spawn.func(
-       #         f"/World/envs/env_0/Obstacle{i}",
-       #         obs_cfg.spawn,
-       #         translation=obs_cfg.init_state.pos,
-        #        orientation=obs_cfg.init_state.rot,
-         #   )
-       # combined_obs_cfg = replace(
-       #     self.cfg.obstacle1, prim_path="/World/envs/env_.*/Obstacle.*"
-       # )
-      #  self.obstacle = RigidObject(combined_obs_cfg)
-      #  self.scene.rigid_objects["obstacle"] = self.obstacle #add the obs in the scene
+        obs_configs = [
+            self.cfg.obstacle1,
+            self.cfg.obstacle2,
+            self.cfg.obstacle3,
+            self.cfg.obstacle4,
+            self.cfg.obstacle5,
+            self.cfg.obstacle6,
+            self.cfg.obstacle7,
+            self.cfg.obstacle8,
+            self.cfg.obstacle9,
+            self.cfg.obstacle10,
+        ]
+        for i, obs_cfg in enumerate(obs_configs, 1):
+            obs_cfg.spawn.func(
+                f"/World/envs/env_0/Obstacle{i}",
+                obs_cfg.spawn,
+                translation=obs_cfg.init_state.pos,
+                orientation=obs_cfg.init_state.rot,
+            )
+        combined_obs_cfg = replace(
+            self.cfg.obstacle1, prim_path="/World/envs/env_.*/Obstacle.*"
+        )
+        self.obstacle = RigidObject(combined_obs_cfg)
+        self.scene.rigid_objects["obstacle"] = self.obstacle #add the obs in the scene
         self.robot_camera = TiledCamera(self.cfg.tiled_camera) #get the camera's data from cfg
         self.contact_body = ContactSensor(self.cfg.contact_sensor_body)
         self.scene.sensors["tiled_camera"] = self.robot_camera #add the camera in the scene
@@ -343,74 +343,74 @@ class QuadcopterEnv(DirectRLEnv):
         self.prev_dist[env_ids] = torch.linalg.norm(goal_vec_init, dim=-1)
 
         #reset obstacles with spacing constraints
-       # obs_base_ids = env_ids * self.num_obstacles
-      #  all_obs_ids = torch.cat(
-       #     [obs_base_ids + i for i in range(self.num_obstacles)], dim=0
-      #  ) #mapping each env with it's obs
-      #  total_obs = len(all_obs_ids)
+        obs_base_ids = env_ids * self.num_obstacles
+        all_obs_ids = torch.cat(
+            [obs_base_ids + i for i in range(self.num_obstacles)], dim=0
+        ) #mapping each env with it's obs
+        total_obs = len(all_obs_ids)
 
         positions_env: dict[int, list[tuple[torch.Tensor, torch.Tensor]]] = {}
         env_ids_list = env_ids.tolist()
 
-      #  for env in env_ids_list:
-      #      origin = self.scene.env_origins[env]
-      #      goal = self.target_pos[env]
-      #      positions: list[tuple[torch.Tensor, torch.Tensor, torch.Tensor]] = []
+        for env in env_ids_list:
+            origin = self.scene.env_origins[env]
+            goal = self.target_pos[env]
+            positions: list[tuple[torch.Tensor, torch.Tensor, torch.Tensor]] = []
 
-          #  for _ in range(self.num_obstacles):
-         #       while True: #colud be improved with victorization!
-          #          radius = (
-          #              torch.rand((), device=self.device) * (3.0 - 1.5) + 1.5
-          #          )
-          #          theta = (
-           #             torch.rand((), device=self.device) * (2 * math.pi) - math.pi
-          #          )
-           #         x = origin[0] + radius * torch.cos(theta)
-           #         y = origin[1] + radius * torch.sin(theta)
-           #         sample_z = torch.empty((), device=self.device).uniform_(1.0, 3.0)
-           #         z = origin[2] + sample_z
+            for _ in range(self.num_obstacles):
+                while True: #colud be improved with victorization!
+                    radius = (
+                        torch.rand((), device=self.device) * (3.0 - 1.5) + 1.5
+                    )
+                    theta = (
+                        torch.rand((), device=self.device) * (2 * math.pi) - math.pi
+                    )
+                    x = origin[0] + radius * torch.cos(theta)
+                    y = origin[1] + radius * torch.sin(theta)
+                    sample_z = torch.empty((), device=self.device).uniform_(1.0, 3.0)
+                    z = origin[2] + sample_z
 
                     #obstacle-origin spacing
-             #       if torch.sqrt( #obs must not be close to the origin "< 1.5"
-              #          (x - origin[0]) ** 2 + (y - origin[1]) ** 2 + (z - origin[2]) ** 2
-             #       ) < 1.5:
-             #           continue
+                    if torch.sqrt( #obs must not be close to the origin "< 1.5"
+                        (x - origin[0]) ** 2 + (y - origin[1]) ** 2 + (z - origin[2]) ** 2
+                    ) < 1.5:
+                        continue
                     #obstacle-goal spacing
-              #      if torch.sqrt((x - goal[0]) ** 2 + (y - goal[1]) ** 2 + (z - goal[2]) ** 2) < 0.8: #must not block the goal
-              #          continue
+                    if torch.sqrt((x - goal[0]) ** 2 + (y - goal[1]) ** 2 + (z - goal[2]) ** 2) < 0.8: #must not block the goal
+                        continue
 
-              #      too_close = False #must not overlap woth other obs
-              #      for (ox, oy, oz) in positions:
-             #           if torch.sqrt((x - ox) ** 2 + (y - oy) ** 2 + (z - oz) ** 2) < 0.8:
-              #              too_close = True
-              #              break
-              #      if too_close:
-              #          continue
+                    too_close = False #must not overlap woth other obs
+                    for (ox, oy, oz) in positions:
+                        if torch.sqrt((x - ox) ** 2 + (y - oy) ** 2 + (z - oz) ** 2) < 0.8:
+                            too_close = True
+                            break
+                    if too_close:
+                        continue
 
-              #      positions.append((x, y, z))
-              #      break
+                    positions.append((x, y, z))
+                    break
 
-           # positions_env[env] = positions
+            positions_env[env] = positions
 
         #flatten positions for all obstacles
-      #  obs_x_list = []
-      #  obs_y_list = []
-      #  obs_z_list = []
-     #   for i in range(self.num_obstacles):
-      #      for env in env_ids_list:
-      #          x, y, z = positions_env[env][i]
-      #          obs_x_list.append(x)
-      #          obs_y_list.append(y)
-       #         obs_z_list.append(z)
+        obs_x_list = []
+        obs_y_list = []
+        obs_z_list = []
+        for i in range(self.num_obstacles):
+            for env in env_ids_list:
+                x, y, z = positions_env[env][i]
+                obs_x_list.append(x)
+                obs_y_list.append(y)
+                obs_z_list.append(z)
 
-     #   obs_x = torch.stack(obs_x_list)
-     #   obs_y = torch.stack(obs_y_list)
-     #   obs_z = torch.stack(obs_z_list)
+        obs_x = torch.stack(obs_x_list)
+        obs_y = torch.stack(obs_y_list)
+        obs_z = torch.stack(obs_z_list)
 
-      #  obs_state = self.obstacle.data.default_root_state[all_obs_ids].clone()
-     #   obs_state[:, 0] = obs_x
-     #   obs_state[:, 1] = obs_y
-      #  obs_state[:, 2] = obs_z
+        obs_state = self.obstacle.data.default_root_state[all_obs_ids].clone()
+        obs_state[:, 0] = obs_x
+        obs_state[:, 1] = obs_y
+        obs_state[:, 2] = obs_z
 
-     #   self.obstacle.write_root_state_to_sim(obs_state, all_obs_ids)
+        self.obstacle.write_root_state_to_sim(obs_state, all_obs_ids)
         self.episode_length_buf[env_ids] = 0
