@@ -153,7 +153,7 @@ class QuadcopterEnv(DirectRLEnv):
         self.contact_body = ContactSensor(self.cfg.contact_sensor_body)
         self.scene.sensors["tiled_camera"] = self.robot_camera #add the camera in the scene
         self.scene.sensors["contact_sensor_body"] = self.contact_body
-        self.scene.clone_environments(copy_from_source=False) #some of the envs in the eps inherit from each other for fast training
+        self.scene.clone_environments(copy_from_source=True) #some of the envs in the eps inherit from each other for fast training
         if self.device == "cpu": #manual filtring for CPU
             self.scene.filter_collisions(global_prim_paths=[self.cfg.terrain.prim_path])
 
