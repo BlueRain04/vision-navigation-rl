@@ -7,6 +7,10 @@ args_cli, _ = parser.parse_known_args()
 app_launcher = AppLauncher(args_cli)
 simulation_app = app_launcher.app
 
+parser.add_argument("--video", action="store_true", default=False)
+parser.add_argument("--video_length", type=int, default=200)
+parser.add_argument("--video_interval", type=int, default=2000)
+
 import gymnasium as gym
 import drone
 from drone.drone_env_cfg import QuadcopterEnvCfg
