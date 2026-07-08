@@ -28,9 +28,10 @@ if args_cli.video:
         "video_folder": "videos",
         "step_trigger": lambda step: step % args_cli.video_interval == 0,
         "video_length": args_cli.video_length,
+        disable_logger=True,
     }
     env = gym.wrappers.RecordVideo(env, **video_kwargs)
-env = SkrlVecEnvWrapper(env.unwrapped, ml_framework="torch")
+env = SkrlVecEnvWrapper(env, ml_framework="torch")
 agent = get_agent(env, device="cuda:0")
 agent.init()
 
