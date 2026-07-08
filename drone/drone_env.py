@@ -118,11 +118,11 @@ class QuadcopterEnv(DirectRLEnv):
     def _setup_scene(self): #need to add the contact sensor
         self._robot = Articulation(self.cfg.robot) #get the robot from the cfg
         self.scene.articulations["robot"] = self._robot #add the robot to the scene
-        self.cfg.terrain.spawn.func(self.cfg.terrain.prim_path, self.cfg.terrain.spawn) #create the terrain in the env
-        if hasattr(self.cfg, "sky_light") and self.cfg.sky_light is not None: #add the lightning
-            self.cfg.sky_light.spawn.func(
-                self.cfg.sky_light.prim_path, self.cfg.sky_light.spawn
-            )
+    #    self.cfg.terrain.spawn.func(self.cfg.terrain.prim_path, self.cfg.terrain.spawn) #create the terrain in the env
+     #   if hasattr(self.cfg, "sky_light") and self.cfg.sky_light is not None: #add the lightning
+     #       self.cfg.sky_light.spawn.func(
+        #        self.cfg.sky_light.prim_path, self.cfg.sky_light.spawn
+      #      )
             
         #add the obstacles
         #obs_configs = [
