@@ -14,18 +14,16 @@ import random
 @configclass
 class QuadcopterEnvCfg(DirectRLEnvCfg):
     #environment
-    decimation = 2
-    episode_length_s = 10.0
+    decimation = 4
+    episode_length_s = 60.0
     action_space = 4
     history_len = 3 #number of frames to stack
-    #2 (RGB) + 4 (goal state) = 7
-    num_channels = 7
     observation_space = gym.spaces.Dict({
-        "rgb": gym.spaces.Box(low=0, high=1, shape=(history_len, 64, 64, 3), dtype=float),
-        "depth": gym.spaces.Box(low=0, high=1, shape=(history_len, 64, 64, 1), dtype=float),
+        "rgb": gym.spaces.Box(low=0, high=255, shape=(history_len, 64, 64, 3), dtype=float),
+        "depth": gym.spaces.Box(low=0, high=255, shape=(history_len, 64, 64, 1), dtype=float), #check the high value
         "state": gym.spaces.Box(low=-float("inf"), high=float("inf"), shape=(4,), dtype=float),
     })
-    state_space = gym.spaces.Box(low=-float("inf"), high=float("inf"), shape=(0,)) #will be modified once the RL agent is ready
+    state_space = gym.spaces.Box(low=-float("inf"), high=float("inf"), shape=(0,)) 
     filter_to_obstacle = [ #create 10 obstacles for each env
     f"/World/envs/env_.*/Obstacle{i}"
     for i in range(1, 11)
@@ -35,13 +33,6 @@ class QuadcopterEnvCfg(DirectRLEnvCfg):
     sim: SimulationCfg = SimulationCfg(
         dt=1 / 100, #every 0.01 second compute the physics
         render_interval=decimation, #draw a frame every two t
-        physics_material=sim_utils.RigidBodyMaterialCfg(
-            friction_combine_mode="multiply", #when two bodies touch the result friction is multiplied
-            restitution_combine_mode="multiply",
-            static_friction=1.0, #friction should be > 1 in order to move a static body
-            dynamic_friction=1.0, #friction should be > 1 in order to move a dynamic body
-            restitution=0.0, #prevent bouncing
-        ),
     )
 
     terrain: AssetBaseCfg = AssetBaseCfg( #creating a simple terrain
@@ -54,7 +45,6 @@ class QuadcopterEnvCfg(DirectRLEnvCfg):
         num_envs=16, #start with 16 then change it later to 3600
         env_spacing=20, #space between the envs "we don't want overlapping!"
         replicate_physics=True, #one template for all envs for efficiency"
-        clone_in_fabric=False #faster scene creation
     )
 
     #lighting
@@ -137,9 +127,26 @@ class QuadcopterEnvCfg(DirectRLEnvCfg):
     robot: ArticulationCfg = CRAZYFLIE_CFG.replace( #create the robot object
         prim_path="/World/envs/env_.*/Robot", #multiple robots for multiple envs
         spawn=CRAZYFLIE_CFG.spawn.replace(
-            activate_contact_sensors=True #we are enabling the sensors for collision
+            activate_contact_sensors=True, #we are enabling the sensors for collision
+            rigid_props=sim_utils.RigidBodyPropertiesCfg(
+                rigid_body_enabled=True,
+                kinematic_enabled=False,
+                disable_gravity=False,
+                max_linear_velocity=1000.0,
+                max_angular_velocity=1000.0,
+                max_depenetration_velocity=5.0,
+                enable_gyroscopic_forces=True,
+            ),
+            collision_props=sim_utils.CollisionPropertiesCfg(),
+            articulation_props=sim_utils.ArticulationRootPropertiesCfg(
+            enabled_self_collisions=False,
+            solver_position_iteration_count=4,
+            solver_velocity_iteration_count=1,
+            ),
         ),
+        init_state=ArticulationCfg.InitialStateCfg(pos=(0.0, 0.0, 0.0)),
     )
+
     thrust_to_weight = 1.61 #should be > 1 so that the drone can make thrust
     moment_scale = [1.25, 1.92, 0.154] #it's the [roll, pitch, yaw]
 
