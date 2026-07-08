@@ -163,7 +163,7 @@ class QuadcopterEnvCfg(DirectRLEnvCfg):
         track_air_time=False,
         update_period=0.0,
         debug_vis=False,
-        filter_prim_paths_expr=filter_to_obstacle,
+        #filter_prim_paths_expr=filter_to_obstacle,
     )
 
     #rewards / logic
