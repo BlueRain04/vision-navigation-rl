@@ -3,13 +3,13 @@ from isaaclab.app import AppLauncher
 
 parser = argparse.ArgumentParser()
 AppLauncher.add_app_launcher_args(parser)
+parser.add_argument("--video", action="store_true", default=False)
+parser.add_argument("--video_length", type=int, default=200)
+parser.add_argument("--video_interval", type=int, default=2000)
 args_cli, _ = parser.parse_known_args()
 app_launcher = AppLauncher(args_cli)
 simulation_app = app_launcher.app
 
-parser.add_argument("--video", action="store_true", default=False)
-parser.add_argument("--video_length", type=int, default=200)
-parser.add_argument("--video_interval", type=int, default=2000)
 
 import gymnasium as gym
 import drone
@@ -23,6 +23,13 @@ env_cfg.scene.num_envs = 16
 env_cfg.sim.device = "cuda:0"
 
 env = gym.make("Drone-Nav-Direct-v0", cfg=env_cfg)
+if args_cli.video:
+    video_kwargs = {
+        "video_folder": "videos",
+        "step_trigger": lambda step: step % args_cli.video_interval == 0,
+        "video_length": args_cli.video_length,
+    }
+    env = gym.wrappers.RecordVideo(env, **video_kwargs)
 env = SkrlVecEnvWrapper(env.unwrapped, ml_framework="torch")
 agent = get_agent(env, device="cuda:0")
 agent.init()
