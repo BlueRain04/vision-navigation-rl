@@ -20,7 +20,7 @@ class QuadcopterEnvCfg(DirectRLEnvCfg):
     history_len = 3 #number of frames to stack
     observation_space = gym.spaces.Dict({
         "rgb": gym.spaces.Box(low=0, high=255, shape=(history_len, 64, 64, 3), dtype=float),
-        "depth": gym.spaces.Box(low=0, high=255, shape=(history_len, 64, 64, 1), dtype=float), #check the high value
+        "depth": gym.spaces.Box(low=0, high=1, shape=(history_len, 64, 64, 1), dtype=float), #check the high value
         "state": gym.spaces.Box(low=-float("inf"), high=float("inf"), shape=(4,), dtype=float),
     })
     state_space = gym.spaces.Box(low=-float("inf"), high=float("inf"), shape=(0,)) 
@@ -132,8 +132,8 @@ class QuadcopterEnvCfg(DirectRLEnvCfg):
                 rigid_body_enabled=True,
                 kinematic_enabled=False,
                 disable_gravity=False,
-                max_linear_velocity=1000.0,
-                max_angular_velocity=1000.0,
+                max_linear_velocity=5.0,
+                max_angular_velocity=10.0,
                 max_depenetration_velocity=5.0,
                 enable_gyroscopic_forces=True,
             ),
