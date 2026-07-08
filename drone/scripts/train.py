@@ -35,7 +35,7 @@ env = SkrlVecEnvWrapper(env, ml_framework="torch")
 agent = get_agent(env, device="cuda:0")
 agent.init()
 
-trainer_cfg = {"timesteps": 10000, "headless": True}
+trainer_cfg = {"timesteps": 500, "headless": True}
 trainer = SequentialTrainer(cfg=trainer_cfg, env=env, agents=agent)
 trainer.train()
 
