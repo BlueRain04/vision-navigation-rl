@@ -9,12 +9,12 @@ simulation_app = app_launcher.app
 
 import gymnasium as gym
 import drone
-from drone.drone_env_cfg import DroneNavEnvCfg
+from drone.drone_env_cfg import QuadcopterEnvCfg
 from drone.learning.skrl.agent import get_agent
 from skrl.trainers.torch import SequentialTrainer
 from isaaclab_rl.skrl import SkrlVecEnvWrapper
 
-env_cfg = DroneNavEnvCfg()
+env_cfg = QuadcopterEnvCfg()
 env_cfg.scene.num_envs = 16
 env_cfg.sim.device = "cuda:0"
 
