@@ -144,18 +144,18 @@ class QuadcopterEnvCfg(DirectRLEnvCfg):
     moment_scale = [1.25, 1.92, 0.154] #it's the [roll, pitch, yaw]
 
     #sensors
-    tiled_camera: TiledCameraCfg = TiledCameraCfg( #attaching one camera to each robot
-        prim_path="/World/envs/env_.*/Robot/body/camera",
-        offset=TiledCameraCfg.OffsetCfg(pos=(0.05, 0.0, 0.0), rot=(1.0, 0.0, 0.0, 0.0), convention="ros"), #posistion of the camera relative to the body, no rotation
-        data_types=["rgb", "distance_to_image_plane"], #returning color image
-        spawn=sim_utils.PinholeCameraCfg(
-        focal_length=24.0, #contrlos the FOV (field of view)
-        horizontal_aperture=20.955, #physical width of the camera "pre-defined"
-        clipping_range=(0.1, 20.0), #distance threshold, anything far from 20m we can't see, closer than 10 cm not rendered as well
-        ),
-        width=64, #image resolution
-        height=64,
-    )
+ #   tiled_camera: TiledCameraCfg = TiledCameraCfg( #attaching one camera to each robot
+  #      prim_path="/World/envs/env_.*/Robot/body/camera",
+ #       offset=TiledCameraCfg.OffsetCfg(pos=(0.05, 0.0, 0.0), rot=(1.0, 0.0, 0.0, 0.0), convention="ros"), #posistion of the camera relative to the body, no rotation
+ #       data_types=["rgb", "distance_to_image_plane"], #returning color image
+ #       spawn=sim_utils.PinholeCameraCfg(
+  #      focal_length=24.0, #contrlos the FOV (field of view)
+ #       horizontal_aperture=20.955, #physical width of the camera "pre-defined"
+  #      clipping_range=(0.1, 20.0), #distance threshold, anything far from 20m we can't see, closer than 10 cm not rendered as well
+  #      ),
+  #      width=64, #image resolution
+  #      height=64,
+  #  )
 
     contact_sensor_body: ContactSensorCfg = ContactSensorCfg(
         prim_path="/World/envs/env_.*/Robot/body",
