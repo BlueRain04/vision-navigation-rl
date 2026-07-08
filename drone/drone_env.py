@@ -104,14 +104,17 @@ class QuadcopterEnv(DirectRLEnv):
         self._moment = torch.zeros(self.num_envs, 1, 3, device=self.device) #create the moment tensor
         self._moment_scale = torch.as_tensor(self.cfg.moment_scale, dtype=torch.float32, device=self.device) #get the moment scale from cfg and make it a tensor
         self.up_dir = torch.tensor([0.0, 0.0, 1.0], device=self.device) #check
+        self._forward_vec_b = torch.tensor([1.0, 0.0, 0.0], device=self.device).repeat(self.num_envs, 1)
         self._episode_sums = {
             key: torch.zeros(self.num_envs, dtype=torch.float, device=self.device)
             for key in [
-                "ang_vel",
+                "ang_vel", #could be removed
                 "collision_reward",
                 "dist_delta",
                 "progress_reward",
-                "success_reward"
+                "success_reward",
+                "alignment_reward",
+                "backward_penalty"
             ]
         }
 
@@ -266,14 +269,24 @@ class QuadcopterEnv(DirectRLEnv):
 
         #5 success
         reached = dist < self.cfg.target_reach_threshold
-        success_reward = reached.float() * 100.0              
+        success_reward = reached.float() * 100.0
+        
+        #6 alignment reward
+        forwards = math_utils.quat_apply(self._robot.data.root_quat_w, self._forward_vec_b)
+        alignment = torch.sum(forwards * goal_dir, dim=-1)
+        alignment_reward = alignment * 0.5
+
+        #7 Backward penalty
+        backward_penalty = torch.clamp(-velocity_proj, min=0.0) * -0.5
 
         rewards = {
             "ang_vel": ang_vel * self.cfg.ang_vel_reward_scale * self.step_dt,
             "collision_reward": collision_val * -5.0,
-            "dist_delta": dist_delta,
+            "dist_delta": dist_delta * 0.5,
             "progress_reward": progress_reward,
-            "success_reward": success_reward
+            "success_reward": success_reward,
+            "alignment_reward": alignment_reward,
+            "backward_penalty": backward_penalty,
         }
         reward = torch.sum(torch.stack(list(rewards.values())), dim=0)
         for key, value in rewards.items():
