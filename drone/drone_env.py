@@ -239,13 +239,12 @@ class QuadcopterEnv(DirectRLEnv):
         unit_goal = goal_vec / (goal_dist + 1e-6)
 
         state_input = torch.hstack((unit_goal, goal_dist))
-        return {"policy": {"rgb": None, "depth": None, "state": None}}
         
-        #return {"policy": {
-         #   "rgb": self._rgb_hist,
-         #   "depth": self._depth_hist,
-         #   "state": state_input,
-       # }} #what the model recives
+        return {"policy": {
+            "rgb": self._rgb_hist,
+            "depth": self._depth_hist,
+            "state": state_input,
+        }} #what the model recives
     
     def _get_rewards(self) -> torch.Tensor:
         #1 velocity
