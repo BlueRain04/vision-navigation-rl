@@ -31,7 +31,7 @@ class QuadcopterEnvCfg(DirectRLEnvCfg):
     ]
     
     viewer: ViewerCfg = ViewerCfg(
-        eye=(6.0, 6.0, 4.0),      # camera position, offset diagonally and elevated
+        eye=(4.0, 4.0, 3.0),      # camera position, offset diagonally and elevated
         lookat=(0.0, 0.0, 1.0),   # looking at roughly drone-height, not ground level
         env_index=0,               # which parallel environment to view (env_0)
     )
