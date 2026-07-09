@@ -78,7 +78,7 @@ class QuadcopterEnvCfg(DirectRLEnvCfg):
                 collision_props=sim_utils.CollisionPropertiesCfg(collision_enabled=True),
                 mass_props=sim_utils.MassPropertiesCfg(mass=100.0),
                 ),
-            ]
+            ],
             random_choice=False,
             rigid_props=sim_utils.RigidBodyPropertiesCfg(solver_position_iteration_count=4),
             #heavy enough not to slide easily
