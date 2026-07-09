@@ -68,32 +68,16 @@ class QuadcopterEnvCfg(DirectRLEnvCfg):
     _base_obstacle = RigidObjectCfg( 
         prim_path="/World/envs/env_.*/Obstacle1",
         spawn=sim_utils.MultiAssetSpawnerCfg( #multi asset since it handles different objects
-            assets_cfg = #different shapes of obstacles
-            [
-                sim_utils.CuboidCfg( #represents (wall, pillar, building, box)
-                size=(0.5, 0.5, 2.0),
-                visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.0, 0.0, 1.0), metallic=0.2),
-                collision_props=sim_utils.CollisionPropertiesCfg(collision_enabled=True),
-                mass_props=sim_utils.MassPropertiesCfg(mass=50.0),
-                ),
-                sim_utils.CylinderCfg( #represents (tree, pole, column)
-                radius=0.35,
+            assets_cfg = 
+                sim_utils.CylinderCfg( 
+                radius=0.2,
                 height=2.2,
                 axis="Z",
                 visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.0, 1.0, 0.0)),
                 collision_props=sim_utils.CollisionPropertiesCfg(collision_enabled=True),
-                mass_props=sim_utils.MassPropertiesCfg(mass=50.0),
+                mass_props=sim_utils.MassPropertiesCfg(mass=100.0),
                 ),
-                sim_utils.ConeCfg( #represents (traffic)
-                radius=0.5,
-                height=2.0,
-                axis="Z",
-                visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(1.0, 0.5, 0.0)),
-                collision_props=sim_utils.CollisionPropertiesCfg(collision_enabled=True),
-                mass_props=sim_utils.MassPropertiesCfg(mass=50.0),
-                ),
-            ],
-            random_choice=True, #choose the object randomlly
+            random_choice=False,
             rigid_props=sim_utils.RigidBodyPropertiesCfg(solver_position_iteration_count=4),
             #heavy enough not to slide easily
         ),
