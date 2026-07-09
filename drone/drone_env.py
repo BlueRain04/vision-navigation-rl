@@ -89,7 +89,7 @@ class QuadcopterEnv(DirectRLEnv):
         self._rgb_hist: torch.Tensor | None = None #start the sps with None camera hist, later could be a tensor
         self._depth_hist: torch.Tensor | None = None #start the sps with None camera hist, later could be a tensor
         self.history_len = cfg.history_len
-        self.num_obstacles = 10
+        self.num_obstacles = 5
         self.target_pos = torch.zeros((self.num_envs, 3), device=self.device)
         self.prev_dist = torch.zeros((self.num_envs,), device=self.device)
         self.arrows = define_markers()
@@ -134,11 +134,6 @@ class QuadcopterEnv(DirectRLEnv):
             self.cfg.obstacle3,
             self.cfg.obstacle4,
             self.cfg.obstacle5,
-            self.cfg.obstacle6,
-            self.cfg.obstacle7,
-            self.cfg.obstacle8,
-            self.cfg.obstacle9,
-            self.cfg.obstacle10,
         ]
         for i, obs_cfg in enumerate(obs_configs, 1):
             obs_cfg.spawn.func(
@@ -345,11 +340,12 @@ class QuadcopterEnv(DirectRLEnv):
             self.scene.env_origins[env_ids, 1]
             + goal_radii * torch.sin(goal_thetas)
         )
-        goal_z = torch.empty(num_resets, device=self.device).uniform_(1.0, 3.0) #might increase the Z to make it harder (also compared to obs)
-        self.target_pos[env_ids, 2] = ( #goal Z position
-            self.scene.env_origins[env_ids, 2]
-            + goal_z
-        )
+        self.target_pos[env_ids, 2] = 1.5
+       # goal_z = torch.empty(num_resets, device=self.device).uniform_(1.0, 3.0) #might increase the Z to make it harder (also compared to obs)
+       #  self.target_pos[env_ids, 2] = ( #goal Z position
+        #     self.scene.env_origins[env_ids, 2]
+        #     + goal_z
+       #  )
 
         #reset prev distances for delta-distance reward
         goal_vec_init = self.target_pos[env_ids] - self._robot.data.root_pos_w[env_ids]
