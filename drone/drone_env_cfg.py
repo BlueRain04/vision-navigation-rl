@@ -22,7 +22,7 @@ class QuadcopterEnvCfg(DirectRLEnvCfg):
     observation_space = gym.spaces.Dict({
         "rgb": gym.spaces.Box(low=0, high=255, shape=(history_len, 64, 64, 3), dtype=float),#check the high value could be 1!
         "depth": gym.spaces.Box(low=0, high=1, shape=(history_len, 64, 64, 1), dtype=float), 
-        "state": gym.spaces.Box(low=-float("inf"), high=float("inf"), shape=(4,), dtype=float),
+        "state": gym.spaces.Box(low=-float("inf"), high=float("inf"), shape=(8,), dtype=float),
     })
     state_space = gym.spaces.Box(low=-float("inf"), high=float("inf"), shape=(0,)) 
     filter_to_obstacle = [ #create 5 obstacles for each env
