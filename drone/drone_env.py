@@ -235,7 +235,14 @@ class QuadcopterEnv(DirectRLEnv):
         goal_dist = torch.linalg.norm(goal_vec, dim=-1, keepdim=True)
         unit_goal = goal_vec / (goal_dist + 1e-6)
 
-        state_input = torch.hstack((unit_goal, goal_dist))
+        # extract yaw from quaternion
+        _, _, yaw = math_utils.euler_xyz_from_quat(self._robot.data.root_quat_w)
+        yaw = yaw.unsqueeze(-1)
+        
+        #get the velocity
+        lin_vel = self._robot.data.root_lin_vel_b
+
+        state_input = torch.hstack((unit_goal, goal_dist, yaw, lin_val))
         
         return {"policy": {
             "rgb": self._rgb_hist,
