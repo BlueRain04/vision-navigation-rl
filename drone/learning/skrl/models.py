@@ -13,9 +13,9 @@ class DroneSharedModel(GaussianMixin, DeterministicMixin, Model):
         DeterministicMixin.__init__(self, clip_actions) #initilize the deterministic policy
 
         #expected input: three tensors, RGB (, 3, H, W), depth (, 3, V), state (, X, Y, Z, dist)
-        #channels: 3 (RGB), 4 (States: GoalX, GoalY, GoalZ, Dist), 1 (depth: depth value)
+        #channels: 3 (RGB), 4 (States: GoalX, GoalY, GoalZ, Dist, yaw, velocity), 1 (depth: depth value)
         self.rgb_ch = 3
-        self.state_ch = 4
+        self.state_ch = 8
         self.depth_ch = 1
         
         #auto-detect shape or fallback
