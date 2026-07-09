@@ -242,7 +242,7 @@ class QuadcopterEnv(DirectRLEnv):
         #get the velocity
         lin_vel = self._robot.data.root_lin_vel_b
 
-        state_input = torch.hstack((unit_goal, goal_dist, yaw, lin_val))
+        state_input = torch.hstack((unit_goal, goal_dist, yaw, lin_vel))
         
         return {"policy": {
             "rgb": self._rgb_hist,
