@@ -68,7 +68,8 @@ class QuadcopterEnvCfg(DirectRLEnvCfg):
     _base_obstacle = RigidObjectCfg( 
         prim_path="/World/envs/env_.*/Obstacle1",
         spawn=sim_utils.MultiAssetSpawnerCfg( #multi asset since it handles different objects
-            assets_cfg = 
+            assets_cfg =
+            [
                 sim_utils.CylinderCfg( 
                 radius=0.2,
                 height=2.2,
@@ -77,6 +78,7 @@ class QuadcopterEnvCfg(DirectRLEnvCfg):
                 collision_props=sim_utils.CollisionPropertiesCfg(collision_enabled=True),
                 mass_props=sim_utils.MassPropertiesCfg(mass=100.0),
                 ),
+            ]
             random_choice=False,
             rigid_props=sim_utils.RigidBodyPropertiesCfg(solver_position_iteration_count=4),
             #heavy enough not to slide easily
