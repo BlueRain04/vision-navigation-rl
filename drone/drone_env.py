@@ -72,7 +72,7 @@ def define_goal_marker():
         prim_path="/Visuals/Command/goal",
         markers= {
             "sphere": sim_utils.SphereCfg(
-                radius = 2.0,
+                radius = 1.0,
                 visual_material = sim_utils.PreviewSurfaceCfg(
                     diffuse_color=(1.0, 0.0, 0.0)
                 ),
