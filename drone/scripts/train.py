@@ -26,8 +26,8 @@ env = gym.make("Drone-Nav-Direct-v0", cfg=env_cfg, render_mode="rgb_array")
 if args_cli.video:
     video_kwargs = {
         "video_folder": "videos",
-        "step_trigger": lambda step: step % args_cli.video_interval == 0,
-        "video_length": args_cli.video_length,
+        "step_trigger": lambda step: step == 0,
+        "video_length": 500,
         "disable_logger": True,
     }
     env = gym.wrappers.RecordVideo(env, **video_kwargs)
@@ -35,7 +35,7 @@ env = SkrlVecEnvWrapper(env, ml_framework="torch")
 agent = get_agent(env, device="cuda:0")
 agent.init()
 
-trainer_cfg = {"timesteps": 500, "headless": True}
+trainer_cfg = {"timesteps": 1000, "headless": True}
 trainer = SequentialTrainer(cfg=trainer_cfg, env=env, agents=agent)
 trainer.train()
 
