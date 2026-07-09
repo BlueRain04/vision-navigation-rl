@@ -10,6 +10,7 @@ from dataclasses import replace
 from isaaclab_assets import CRAZYFLIE_CFG
 from isaaclab.sensors import TiledCameraCfg, ContactSensorCfg
 import random
+from isaaclab.envs import ViewerCfg
 
 @configclass
 class QuadcopterEnvCfg(DirectRLEnvCfg):
@@ -28,6 +29,12 @@ class QuadcopterEnvCfg(DirectRLEnvCfg):
     f"/World/envs/env_.*/Obstacle{i}"
     for i in range(1, 11)
     ]
+    
+    viewer: ViewerCfg = ViewerCfg(
+        eye=(6.0, 6.0, 4.0),      # camera position, offset diagonally and elevated
+        lookat=(0.0, 0.0, 1.0),   # looking at roughly drone-height, not ground level
+        env_index=0,               # which parallel environment to view (env_0)
+    )
 
     #simulation
     sim: SimulationCfg = SimulationCfg(
