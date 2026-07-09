@@ -92,8 +92,8 @@ class QuadcopterEnv(DirectRLEnv):
         self.num_obstacles = 5
         self.target_pos = torch.zeros((self.num_envs, 3), device=self.device)
         self.prev_dist = torch.zeros((self.num_envs,), device=self.device)
-        self.arrows = define_markers()
-        self.arrows.set_visibility(True)
+       # self.arrows = define_markers()
+       # self.arrows.set_visibility(True)
         self.goal_marker = define_goal_marker()
         self.goal_marker.set_visibility(True)
         self._body_id = self._robot.find_bodies("body")[0] #this is linked to the camera, make sure that the crazyflie has body index
