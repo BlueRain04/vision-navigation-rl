@@ -25,9 +25,9 @@ class QuadcopterEnvCfg(DirectRLEnvCfg):
         "state": gym.spaces.Box(low=-float("inf"), high=float("inf"), shape=(4,), dtype=float),
     })
     state_space = gym.spaces.Box(low=-float("inf"), high=float("inf"), shape=(0,)) 
-    filter_to_obstacle = [ #create 10 obstacles for each env
+    filter_to_obstacle = [ #create 5 obstacles for each env
     f"/World/envs/env_.*/Obstacle{i}"
-    for i in range(1, 11)
+    for i in range(1, 6)
     ]
     
     viewer: ViewerCfg = ViewerCfg(
@@ -99,21 +99,6 @@ class QuadcopterEnvCfg(DirectRLEnvCfg):
     )
     obstacle5: RigidObjectCfg = replace(
         _base_obstacle, prim_path="/World/envs/env_.*/Obstacle5"
-    )
-    obstacle6: RigidObjectCfg = replace(
-        _base_obstacle, prim_path="/World/envs/env_.*/Obstacle6"
-    )
-    obstacle7: RigidObjectCfg = replace(
-        _base_obstacle, prim_path="/World/envs/env_.*/Obstacle7"
-    )
-    obstacle8: RigidObjectCfg = replace(
-        _base_obstacle, prim_path="/World/envs/env_.*/Obstacle8"
-    )
-    obstacle9: RigidObjectCfg = replace(
-        _base_obstacle, prim_path="/World/envs/env_.*/Obstacle9"
-    )
-    obstacle10: RigidObjectCfg = replace(
-        _base_obstacle, prim_path="/World/envs/env_.*/Obstacle10"
     )
 
     #robot
