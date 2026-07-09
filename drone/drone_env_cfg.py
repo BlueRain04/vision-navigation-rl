@@ -126,7 +126,7 @@ class QuadcopterEnvCfg(DirectRLEnvCfg):
     )
 
     thrust_to_weight = 1.61 #should be > 1 so that the drone can make thrust
-    moment_scale = [1.25, 1.92, 0.154] #it's the [roll, pitch, yaw]
+    moment_scale = [0.05, 0.05, 0.02] #it's the [roll, pitch, yaw] 1.25, 1.92, 0.154
 
     #sensors
     tiled_camera: TiledCameraCfg = TiledCameraCfg( #attaching one camera to each robot
