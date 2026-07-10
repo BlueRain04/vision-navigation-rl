@@ -106,6 +106,7 @@ class QuadcopterEnv(DirectRLEnv):
         self.up_dir = torch.tensor([0.0, 0.0, 1.0], device=self.device) #check
         self._forward_vec_b = torch.tensor([1.0, 0.0, 0.0], device=self.device).repeat(self.num_envs, 1)
         self._prev_yaw = torch.zeros(self.num_envs, device=self.device)
+        self._was_near_obstacle = torch.zeros(self.num_envs, dtype=torch.bool, device=self.device)
         self._episode_sums = {
             key: torch.zeros(self.num_envs, dtype=torch.float, device=self.device)
             for key in [
