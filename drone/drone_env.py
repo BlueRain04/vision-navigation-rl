@@ -351,6 +351,18 @@ class QuadcopterEnv(DirectRLEnv):
             env_ids = self._robot._ALL_INDICES #selecting all envs to reset
         num_resets = len(env_ids) #check
 
+        print(
+            f"""
+        Episode:
+        Progress : {self._episode_sums['progress_reward'][env_ids].mean():8.2f}
+        Distance : {self._episode_sums['dist_delta'][env_ids].mean():8.2f}
+        Collision: {self._episode_sums['collision_reward'][env_ids].mean():8.2f}
+        Heading  : {self._episode_sums['heading_error_penalty'][env_ids].mean():8.2f}
+        Yaw      : {self._episode_sums['yaw_change_reward'][env_ids].mean():8.2f}
+        Avoid    : {self._episode_sums['avoid_success_reward'][env_ids].mean():8.2f}
+        Ang Vel  : {self._episode_sums['ang_vel'][env_ids].mean():8.2f}
+        """
+        )
         #reset robot
         root_state = self._robot.data.default_root_state[env_ids].clone() #get a copy from the robot template
         root_state[:, :3] += self.scene.env_origins[env_ids] #get the robot (X, Y, Z) position
