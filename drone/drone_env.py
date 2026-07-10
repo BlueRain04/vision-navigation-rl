@@ -289,17 +289,11 @@ class QuadcopterEnv(DirectRLEnv):
         #5 heading error, only penalized when clear (rule 1)
         forwards = math_utils.quat_apply(self._robot.data.root_quat_w, self._forward_vec_b)
         heading_alignment = torch.sum(forwards * goal_dir, dim=-1)  # 1 = facing goal, -1 = facing away
-        if not obstacle_detected:
-            heading_error_penalty = torch.where(heading_alignment < 0.95, -(1.0 - heading_alignment),0.0,)
-        else:
-            heading_error_penalty = 0.0
-       # forwards = math_utils.quat_apply(self._robot.data.root_quat_w, self._forward_vec_b)
-     #   heading_alignment = torch.sum(forwards * goal_dir, dim=-1)  # 1 = facing goal, -1 = facing away
-      #  heading_error_penalty = torch.where(
-      #      obstacle_detected,
-      #      torch.zeros_like(heading_alignment),
-       #     (1.0 - heading_alignment) * -0.5,  # penalize misalignment only when clear
-      #  )
+        heading_error_penalty = torch.where(
+            obstacle_detected,
+            torch.zeros_like(heading_alignment),
+            (1.0 - heading_alignment),  # penalize misalignment only when clear
+        )
 
         #6 yaw-change reward, only when obstacle detected (rule 2)
         yaw_diff = torch.abs(yaw - self._prev_yaw)
