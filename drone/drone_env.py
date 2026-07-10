@@ -105,6 +105,8 @@ class QuadcopterEnv(DirectRLEnv):
         self._moment_scale = torch.as_tensor(self.cfg.moment_scale, dtype=torch.float32, device=self.device) #get the moment scale from cfg and make it a tensor
         self.up_dir = torch.tensor([0.0, 0.0, 1.0], device=self.device) #check
         self._forward_vec_b = torch.tensor([1.0, 0.0, 0.0], device=self.device).repeat(self.num_envs, 1)
+        self._prev_yaw = torch.zeros(self.num_envs, device=self.device)
+        self._was_near_obstacle = torch.zeros(self.num_envs, dtype=torch.bool, device=self.device)
         self._episode_sums = {
             key: torch.zeros(self.num_envs, dtype=torch.float, device=self.device)
             for key in [
@@ -112,9 +114,12 @@ class QuadcopterEnv(DirectRLEnv):
                 "dist_delta",
                 "progress_reward",
                 "success_reward",
-                "alignment_reward",
+               # "alignment_reward",
            #     "backward_penalty",
-                "ang_vel", 
+                "ang_vel",
+                "heading_error_penalty",
+                "yaw_change_reward",
+                "avoid_success_reward"
             ]
         }
 
@@ -253,6 +258,12 @@ class QuadcopterEnv(DirectRLEnv):
     def _get_rewards(self) -> torch.Tensor:
         #1 velocity
         ang_vel = torch.sum(torch.square(self._robot.data.root_ang_vel_b), dim=1)
+        #obstacle detection from depth
+        min_depth = self._depth_hist[:, -1].amin(dim=(1, 2, 3))
+        obstacle_detected = min_depth < 0.15 #we might need to tune the 0.15
+
+        #current yaw
+        _, _, yaw = math_utils.euler_xyz_from_quat(self._robot.data.root_quat_w)
         
         #2 close to goal
         robot_lin_vel = self._robot.data.root_lin_vel_w[:, :3]
@@ -271,27 +282,53 @@ class QuadcopterEnv(DirectRLEnv):
 
         #5 success
         reached = dist < self.cfg.target_reach_threshold
-        success_reward = reached.float() * 100.0
+        success_reward = reached.float() * 5.0
         
-        #6 alignment reward
+        #5 heading error, only penalized when clear (rule 1)
         forwards = math_utils.quat_apply(self._robot.data.root_quat_w, self._forward_vec_b)
-        goal_dir = goal_vec / (torch.norm(goal_vec, dim=-1, keepdim=True) + 1e-6)
-        alignment = torch.sum(forwards * goal_dir, dim=-1)
-        alignment_reward = alignment * 0.5
+        heading_alignment = torch.sum(forwards * goal_dir, dim=-1)  # 1 = facing goal, -1 = facing away
+        heading_error_penalty = torch.where(
+            obstacle_detected,
+            torch.zeros_like(heading_alignment),
+            (1.0 - heading_alignment) * -0.5,  # penalize misalignment only when clear
+        )
+
+        #6 yaw-change reward — only when obstacle detected (Rule 2)
+        yaw_diff = torch.abs(yaw - self._prev_yaw)
+        yaw_diff = torch.remainder(yaw_diff + math.pi, 2 * math.pi) - math.pi  # wrap to [-pi, pi]
+        yaw_change_reward = torch.where(
+            obstacle_detected,
+            torch.abs(yaw_diff) * 0.3,
+            torch.zeros_like(yaw_diff),
+        )
+        self._prev_yaw = yaw.clone()
+
+        #7 avoid-success bonus (Rule 3)
+        # fires when drone WAS near an obstacle last step, and is no longer, and didn't crash
+        just_cleared = self._was_near_obstacle & (~obstacle_detected) & (~collision_val.bool())
+        avoid_success_reward = just_cleared.float() * 20.0
+        self._was_near_obstacle = obstacle_detected.clone()
+        #6 alignment reward
+      #  forwards = math_utils.quat_apply(self._robot.data.root_quat_w, self._forward_vec_b)
+      #  goal_dir = goal_vec / (torch.norm(goal_vec, dim=-1, keepdim=True) + 1e-6)
+       # alignment = torch.sum(forwards * goal_dir, dim=-1)
+      #  alignment_reward = alignment * 0.5
 
         #7 Backward penalty
        # backward_act = torch.sum(torch.clamp(self.actions, max=0.0), dim=1)
        # backward_penalty = backward_act * 0.5
 
         rewards = {
-      #      "ang_vel": ang_vel * self.cfg.ang_vel_reward_scale * self.step_dt,
+            "ang_vel": ang_vel * self.cfg.ang_vel_reward_scale * self.step_dt,
             "collision_reward": collision_val * -5.0,
             "dist_delta": dist_delta * 0.5,
             "progress_reward": progress_reward,
             "success_reward": success_reward,
-            "alignment_reward": alignment_reward,
+            #"alignment_reward": alignment_reward,
+            "heading_error_penalty": heading_error_penalty * 0.8,
+            "yaw_change_reward": yaw_change_reward * 0.05,
+            "avoid_success_reward": avoid_success_reward * 0.3,
          #   "backward_penalty": backward_penalty,
-            "ang_vel": ang_vel * self.cfg.ang_vel_reward_scale * self.step_dt,
         }
         reward = torch.sum(torch.stack(list(rewards.values())), dim=0)
         for key, value in rewards.items():
@@ -321,6 +358,11 @@ class QuadcopterEnv(DirectRLEnv):
         #random yaw "check"
         rand_yaw = torch.zeros((num_resets, 3), device=self.device)
         rand_yaw[:, 2] = torch.rand(num_resets, device=self.device) * 2.0 * math.pi
+
+        _, _, yaw0 = math_utils.euler_xyz_from_quat(root_state[:, 3:7])
+        self._prev_yaw[env_ids] = yaw0
+
+        self._was_near_obstacle[env_ids] = False
 
         quat = math_utils.quat_from_euler_xyz(
             rand_yaw[:, 0], rand_yaw[:, 1], rand_yaw[:, 2]
