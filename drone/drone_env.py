@@ -327,7 +327,7 @@ class QuadcopterEnv(DirectRLEnv):
             "progress_reward": progress_reward,
             "success_reward": success_reward,
             #"alignment_reward": alignment_reward,
-            "heading_error_penalty": heading_error_penalty * 0.8,
+            "heading_error_penalty": -heading_error_penalty * 0.1,
             "yaw_change_reward": yaw_change_reward * 0.05,
           #  "avoid_success_reward": avoid_success_reward * 0.3,
          #   "backward_penalty": backward_penalty,
@@ -428,6 +428,8 @@ class QuadcopterEnv(DirectRLEnv):
         env_ids_list = env_ids.tolist()
 
         for env in env_ids_list:
+            for key in self._episode_sums.keys():
+                self._episode_sums[key][env_ids] = 0.0
             origin = self.scene.env_origins[env]
             goal = self.target_pos[env]
             positions: list[tuple[torch.Tensor, torch.Tensor, torch.Tensor]] = []
