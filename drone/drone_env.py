@@ -258,7 +258,7 @@ class QuadcopterEnv(DirectRLEnv):
     def _get_rewards(self) -> torch.Tensor:
         #1 velocity
         ang_vel = torch.sum(torch.square(self._robot.data.root_ang_vel_b), dim=1)
-        ang_vel = torch.clamp(ang_vel, max=20.0)
+        ang_vel = torch.clamp(ang_vel, max=50.0)
         #obstacle detection from depth
         min_depth = self._depth_hist[:, -1].amin(dim=(1, 2, 3))
         obstacle_detected = min_depth < 0.15 #we might need to tune the 0.15
@@ -271,12 +271,11 @@ class QuadcopterEnv(DirectRLEnv):
         goal_vec = self._get_goal_vec()
         goal_dir = goal_vec / (torch.norm(goal_vec, dim=-1, keepdim=True) + 1e-6)
         velocity_proj = torch.sum(robot_lin_vel * goal_dir, dim=-1)
-        progress_reward = torch.clamp(velocity_proj, -2.0, 2.0) * 2.0
+        progress_reward = velocity_proj * 2.0
 
         #3 distance reward
         dist = torch.linalg.norm(goal_vec, dim=-1)
         dist_delta = self.prev_dist - dist
-        dist_delta = torch.clamp(dist_delta, -0.2, 0.2)
         self.prev_dist = dist.clone()
 
         #4 collision penalty
@@ -321,8 +320,8 @@ class QuadcopterEnv(DirectRLEnv):
        # backward_penalty = backward_act * 0.5
 
         rewards = {
-            "ang_vel": ang_vel * self.cfg.ang_vel_reward_scale,
-            "collision_reward": collision_val * -5.0,
+            "ang_vel": -ang_vel ,
+            "collision_reward": collision_val * -10.0,
             "dist_delta": dist_delta * 0.5,
             "progress_reward": progress_reward,
             "success_reward": success_reward,
