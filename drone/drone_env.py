@@ -113,7 +113,7 @@ class QuadcopterEnv(DirectRLEnv):
                 "progress_reward",
                 "success_reward",
                 "alignment_reward",
-                "backward_penalty",
+           #     "backward_penalty",
                 "ang_vel", 
             ]
         }
@@ -280,8 +280,8 @@ class QuadcopterEnv(DirectRLEnv):
         alignment_reward = alignment * 0.5
 
         #7 Backward penalty
-        backward_act = torch.sum(torch.clamp(self.actions, max=0.0), dim=1)
-        backward_penalty = backward_act * 0.5
+       # backward_act = torch.sum(torch.clamp(self.actions, max=0.0), dim=1)
+       # backward_penalty = backward_act * 0.5
 
         rewards = {
       #      "ang_vel": ang_vel * self.cfg.ang_vel_reward_scale * self.step_dt,
@@ -290,7 +290,7 @@ class QuadcopterEnv(DirectRLEnv):
             "progress_reward": progress_reward,
             "success_reward": success_reward,
             "alignment_reward": alignment_reward,
-            "backward_penalty": backward_penalty,
+         #   "backward_penalty": backward_penalty,
             "ang_vel": ang_vel * self.cfg.ang_vel_reward_scale * self.step_dt,
         }
         reward = torch.sum(torch.stack(list(rewards.values())), dim=0)
