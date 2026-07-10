@@ -106,7 +106,6 @@ class QuadcopterEnv(DirectRLEnv):
         self.up_dir = torch.tensor([0.0, 0.0, 1.0], device=self.device) #check
         self._forward_vec_b = torch.tensor([1.0, 0.0, 0.0], device=self.device).repeat(self.num_envs, 1)
         self._prev_yaw = torch.zeros(self.num_envs, device=self.device)
-        self._was_near_obstacle = torch.zeros(self.num_envs, dtype=torch.bool, device=self.device)
         self._episode_sums = {
             key: torch.zeros(self.num_envs, dtype=torch.float, device=self.device)
             for key in [
@@ -119,7 +118,7 @@ class QuadcopterEnv(DirectRLEnv):
                 "ang_vel",
                 "heading_error_penalty",
                 "yaw_change_reward",
-                "avoid_success_reward"
+              #  "avoid_success_reward"
             ]
         }
 
@@ -258,6 +257,7 @@ class QuadcopterEnv(DirectRLEnv):
     def _get_rewards(self) -> torch.Tensor:
         #1 velocity
         ang_vel = torch.sum(torch.square(self._robot.data.root_ang_vel_b), dim=1)
+        ang_vel = torch.clamp(ang_vel, max=20.0)
         #obstacle detection from depth
         min_depth = self._depth_hist[:, -1].amin(dim=(1, 2, 3))
         obstacle_detected = min_depth < 0.15 #we might need to tune the 0.15
@@ -270,11 +270,12 @@ class QuadcopterEnv(DirectRLEnv):
         goal_vec = self._get_goal_vec()
         goal_dir = goal_vec / (torch.norm(goal_vec, dim=-1, keepdim=True) + 1e-6)
         velocity_proj = torch.sum(robot_lin_vel * goal_dir, dim=-1)
-        progress_reward = velocity_proj * 2.5
+        progress_reward = torch.clamp(velocity_proj, -2.0, 2.0) * 2.0
 
         #3 distance reward
         dist = torch.linalg.norm(goal_vec, dim=-1)
         dist_delta = self.prev_dist - dist
+        dist_delta = torch.clamp(dist_delta, -0.2, 0.2)
         self.prev_dist = dist.clone()
 
         #4 collision penalty
@@ -282,32 +283,38 @@ class QuadcopterEnv(DirectRLEnv):
 
         #5 success
         reached = dist < self.cfg.target_reach_threshold
-        success_reward = reached.float() * 5.0
+        success_reward = reached.float() * 100.0
         
         #5 heading error, only penalized when clear (rule 1)
         forwards = math_utils.quat_apply(self._robot.data.root_quat_w, self._forward_vec_b)
         heading_alignment = torch.sum(forwards * goal_dir, dim=-1)  # 1 = facing goal, -1 = facing away
-        heading_error_penalty = torch.where(
-            obstacle_detected,
-            torch.zeros_like(heading_alignment),
-            (1.0 - heading_alignment) * -0.5,  # penalize misalignment only when clear
-        )
+        if not obstacle_detected:
+            heading_error_penalty = torch.where(heading_alignment < 0.95, -(1.0 - heading_alignment),0.0,)
+        else:
+            heading_error_penalty = 0.0
+       # forwards = math_utils.quat_apply(self._robot.data.root_quat_w, self._forward_vec_b)
+     #   heading_alignment = torch.sum(forwards * goal_dir, dim=-1)  # 1 = facing goal, -1 = facing away
+      #  heading_error_penalty = torch.where(
+      #      obstacle_detected,
+      #      torch.zeros_like(heading_alignment),
+       #     (1.0 - heading_alignment) * -0.5,  # penalize misalignment only when clear
+      #  )
 
-        #6 yaw-change reward — only when obstacle detected (Rule 2)
+        #6 yaw-change reward, only when obstacle detected (rule 2)
         yaw_diff = torch.abs(yaw - self._prev_yaw)
-        yaw_diff = torch.remainder(yaw_diff + math.pi, 2 * math.pi) - math.pi  # wrap to [-pi, pi]
+        yaw_diff = torch.remainder(yaw_diff + math.pi, 2 * math.pi) - math.pi  #wrap to [-pi, pi]
         yaw_change_reward = torch.where(
             obstacle_detected,
-            torch.abs(yaw_diff) * 0.3,
+            torch.clamp(torch.abs(yaw_diff), max=0.3) * 0.3,
             torch.zeros_like(yaw_diff),
         )
         self._prev_yaw = yaw.clone()
 
         #7 avoid-success bonus (Rule 3)
         # fires when drone WAS near an obstacle last step, and is no longer, and didn't crash
-        just_cleared = self._was_near_obstacle & (~obstacle_detected) & (~collision_val.bool())
-        avoid_success_reward = just_cleared.float() * 20.0
-        self._was_near_obstacle = obstacle_detected.clone()
+      #  just_cleared = self._was_near_obstacle & (~obstacle_detected) & (~collision_val.bool())
+      # avoid_success_reward = just_cleared.float() * 20.0
+      #  self._was_near_obstacle = obstacle_detected.clone()
         #6 alignment reward
       #  forwards = math_utils.quat_apply(self._robot.data.root_quat_w, self._forward_vec_b)
       #  goal_dir = goal_vec / (torch.norm(goal_vec, dim=-1, keepdim=True) + 1e-6)
@@ -319,7 +326,7 @@ class QuadcopterEnv(DirectRLEnv):
        # backward_penalty = backward_act * 0.5
 
         rewards = {
-            "ang_vel": ang_vel * self.cfg.ang_vel_reward_scale * self.step_dt,
+            "ang_vel": ang_vel * self.cfg.ang_vel_reward_scale,
             "collision_reward": collision_val * -5.0,
             "dist_delta": dist_delta * 0.5,
             "progress_reward": progress_reward,
@@ -327,7 +334,7 @@ class QuadcopterEnv(DirectRLEnv):
             #"alignment_reward": alignment_reward,
             "heading_error_penalty": heading_error_penalty * 0.8,
             "yaw_change_reward": yaw_change_reward * 0.05,
-            "avoid_success_reward": avoid_success_reward * 0.3,
+          #  "avoid_success_reward": avoid_success_reward * 0.3,
          #   "backward_penalty": backward_penalty,
         }
         reward = torch.sum(torch.stack(list(rewards.values())), dim=0)
@@ -359,8 +366,8 @@ class QuadcopterEnv(DirectRLEnv):
         Collision: {self._episode_sums['collision_reward'][env_ids].mean():8.2f}
         Heading  : {self._episode_sums['heading_error_penalty'][env_ids].mean():8.2f}
         Yaw      : {self._episode_sums['yaw_change_reward'][env_ids].mean():8.2f}
-        Avoid    : {self._episode_sums['avoid_success_reward'][env_ids].mean():8.2f}
         Ang Vel  : {self._episode_sums['ang_vel'][env_ids].mean():8.2f}
+        success_reward: {self._episode_sums['success_reward'][env_ids].mean():8.2f}
         """
         )
         #reset robot
