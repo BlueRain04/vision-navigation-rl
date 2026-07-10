@@ -320,7 +320,7 @@ class QuadcopterEnv(DirectRLEnv):
        # backward_penalty = backward_act * 0.5
 
         rewards = {
-            "ang_vel": ang_vel * -0.05,
+            "ang_vel": ang_vel * -0.001,
             "collision_reward": collision_val * -10.0,
             "dist_delta": dist_delta * 0.5,
             "progress_reward": progress_reward,
