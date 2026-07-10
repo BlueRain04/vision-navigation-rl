@@ -108,13 +108,13 @@ class QuadcopterEnv(DirectRLEnv):
         self._episode_sums = {
             key: torch.zeros(self.num_envs, dtype=torch.float, device=self.device)
             for key in [
-                "ang_vel", #could be removed
                 "collision_reward",
                 "dist_delta",
                 "progress_reward",
                 "success_reward",
                 "alignment_reward",
-                "backward_penalty"
+                "backward_penalty",
+                "ang_vel", 
             ]
         }
 
@@ -252,7 +252,7 @@ class QuadcopterEnv(DirectRLEnv):
     
     def _get_rewards(self) -> torch.Tensor:
         #1 velocity
-     #   ang_vel = torch.sum(torch.square(self._robot.data.root_ang_vel_b), dim=1)
+        ang_vel = torch.sum(torch.square(self._robot.data.root_ang_vel_b), dim=1)
         
         #2 close to goal
         robot_lin_vel = self._robot.data.root_lin_vel_w[:, :3]
@@ -291,6 +291,7 @@ class QuadcopterEnv(DirectRLEnv):
             "success_reward": success_reward,
             "alignment_reward": alignment_reward,
             "backward_penalty": backward_penalty,
+            "ang_vel": ang_vel * self.cfg.ang_vel_reward_scale * self.step_dt,
         }
         reward = torch.sum(torch.stack(list(rewards.values())), dim=0)
         for key, value in rewards.items():
