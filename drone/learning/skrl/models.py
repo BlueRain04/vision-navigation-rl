@@ -81,7 +81,9 @@ class DroneSharedModel(GaussianMixin, DeterministicMixin, Model):
 
     def act(self, inputs, role):
         if role == "policy":
-            return GaussianMixin.act(self, inputs, role)
+            out = GaussianMixin.act(self, inputs, role)
+            print("the policy out value:", out[0][:3])
+            return out
         elif role == "value":
             return DeterministicMixin.act(self, inputs, role)
     
@@ -129,7 +131,7 @@ class DroneSharedModel(GaussianMixin, DeterministicMixin, Model):
         shared = self.net(joint_emb)
 
         #5 output
-        print(self.log_std)
+        print("the log std value:", self.log_std)
         if role == "policy":
             return self.policy_mean(shared), self.log_std, {}
         elif role == "value":
