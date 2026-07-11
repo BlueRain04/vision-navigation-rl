@@ -31,8 +31,8 @@ def get_agent(env, device, experiment_cfg=None):
     
     #learning rate
     cfg["learning_rate"] = 3.0e-4 
-    cfg["learning_rate_scheduler"] = KLAdaptiveRL
-    cfg["learning_rate_scheduler_kwargs"] = {"kl_threshold": 0.01} 
+   # cfg["learning_rate_scheduler"] = KLAdaptiveRL
+  #  cfg["learning_rate_scheduler_kwargs"] = {"kl_threshold": 0.01} 
     
     #clips
     cfg["grad_norm_clip"]      = 1.0
@@ -41,7 +41,7 @@ def get_agent(env, device, experiment_cfg=None):
     cfg["clip_predicted_values"] = True
     
     #loss scaling
-    cfg["entropy_loss_scale"] = 0.01 
+    cfg["entropy_loss_scale"] = 0.02 
     cfg["value_loss_scale"]   = 1.0
     
     #preprocessors
