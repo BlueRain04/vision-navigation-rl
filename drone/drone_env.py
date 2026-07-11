@@ -172,17 +172,17 @@ class QuadcopterEnv(DirectRLEnv):
         self._moment[:, 0, :] = self._moment_scale * self._actions[:, 1:] #take the roll, pitch, and yas from action scale them then add to moment tensor
         self.goal_marker.visualize(self.target_pos)
         if self.common_step_counter % 500 == 0:
-            print(f"Action mean : {self._actions.mean():.3f}")
-            print(f"Action std  : {self._actions.std():.3f}")
+            print(f"Action mean : {self.actions.mean():.3f}")
+            print(f"Action std  : {self.actions.std():.3f}")
             print(
                 f"Thrust act  : mean={self._actions[:,0].mean():.3f}, "
-                f"std={self._actions[:,0].std():.3f}, "
-                f"min={self._actions[:,0].min():.3f}, "
-                f"max={self._actions[:,0].max():.3f}"
+                f"std={self.actions[:,0].std():.3f}, "
+                f"min={self.actions[:,0].min():.3f}, "
+                f"max={self.actions[:,0].max():.3f}"
             )
-            print(f"Roll act    : {self._actions[:,1].mean():.3f}")
-            print(f"Pitch act   : {self._actions[:,2].mean():.3f}")
-            print(f"Yaw act     : {self._actions[:,3].mean():.3f}")
+            print(f"Roll act    : {self.actions[:,1].mean():.3f}")
+            print(f"Pitch act   : {self.actions[:,2].mean():.3f}")
+            print(f"Yaw act     : {self.actions[:,3].mean():.3f}")
             print(f"Thrust force : {self._thrust[:, 0, 2].mean():.3f}")
       #  self._visualize_arrows()
 
