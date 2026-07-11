@@ -49,7 +49,7 @@ class QuadcopterEnvCfg(DirectRLEnvCfg):
 
     #scene
     scene: InteractiveSceneCfg = InteractiveSceneCfg( #we run multiple envs for each drone
-        num_envs=16, #start with 16 then change it later to 3600
+        num_envs=64, #start with 16 then change it later to 3600
         env_spacing=20, #space between the envs "we don't want overlapping!"
         replicate_physics=True, #one template for all envs for efficiency"
     )
