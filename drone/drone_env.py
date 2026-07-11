@@ -421,7 +421,7 @@ class QuadcopterEnv(DirectRLEnv):
             self.scene.env_origins[env_ids, 1]
             + goal_radii * torch.sin(goal_thetas)
         )
-        self.target_pos[env_ids, 2] = 1.2
+        self.target_pos[env_ids, 2] = 1.0
        # goal_z = torch.empty(num_resets, device=self.device).uniform_(1.0, 3.0) #might increase the Z to make it harder (also compared to obs)
        #  self.target_pos[env_ids, 2] = ( #goal Z position
         #     self.scene.env_origins[env_ids, 2]
