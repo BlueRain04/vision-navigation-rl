@@ -166,7 +166,7 @@ class QuadcopterEnv(DirectRLEnv):
     
     def _pre_physics_step(self, actions: torch.Tensor) -> None:
         self.step_counter += 1
-        print(actions[:5])
+        print("the actions[:5]", actions[:5])
         self._actions = actions.clone().clamp(-1.0, 1.0) #clone the action for independent memory then clip it
       #  self._actions = 0.8 * self._actions + 0.2 * actions.clone().clamp(-1.0, 1.0)
         self._thrust[:, 0, 2] = self.cfg.thrust_to_weight * self._robot_weight * (self._actions[:, 0] + 1.0) / 2.0 #get the thrust action range [-1, 1] and map it to [0, 1] to apply in simulator, assign it as Z force since X Y are not applicable
