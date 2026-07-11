@@ -107,6 +107,7 @@ class QuadcopterEnv(DirectRLEnv):
         self._forward_vec_b = torch.tensor([1.0, 0.0, 0.0], device=self.device).repeat(self.num_envs, 1)
         self._prev_yaw = torch.zeros(self.num_envs, device=self.device)
         self._was_near_obstacle = torch.zeros(self.num_envs, dtype=torch.bool, device=self.device)
+        self.step_counter = 0
         self._episode_sums = {
             key: torch.zeros(self.num_envs, dtype=torch.float, device=self.device)
             for key in [
@@ -164,11 +165,25 @@ class QuadcopterEnv(DirectRLEnv):
         return self.target_pos - self._robot.data.root_pos_w
     
     def _pre_physics_step(self, actions: torch.Tensor) -> None:
+        self.step_counter += 1
         self._actions = actions.clone().clamp(-1.0, 1.0) #clone the action for independent memory then clip it
       #  self._actions = 0.8 * self._actions + 0.2 * actions.clone().clamp(-1.0, 1.0)
         self._thrust[:, 0, 2] = self.cfg.thrust_to_weight * self._robot_weight * (self._actions[:, 0] + 1.0) / 2.0 #get the thrust action range [-1, 1] and map it to [0, 1] to apply in simulator, assign it as Z force since X Y are not applicable
         self._moment[:, 0, :] = self._moment_scale * self._actions[:, 1:] #take the roll, pitch, and yas from action scale them then add to moment tensor
         self.goal_marker.visualize(self.target_pos)
+        if self.common_step_counter % 500 == 0:
+            print(f"Action mean : {self._actions.mean():.3f}")
+            print(f"Action std  : {self._actions.std():.3f}")
+            print(
+                f"Thrust act  : mean={self._actions[:,0].mean():.3f}, "
+                f"std={self._actions[:,0].std():.3f}, "
+                f"min={self._actions[:,0].min():.3f}, "
+                f"max={self._actions[:,0].max():.3f}"
+            )
+            print(f"Roll act    : {self._actions[:,1].mean():.3f}")
+            print(f"Pitch act   : {self._actions[:,2].mean():.3f}")
+            print(f"Yaw act     : {self._actions[:,3].mean():.3f}")
+            print(f"Thrust force : {self._thrust[:, 0, 2].mean():.3f}")
       #  self._visualize_arrows()
 
     def _visualize_arrows(self):
@@ -365,8 +380,6 @@ class QuadcopterEnv(DirectRLEnv):
         success_reward: {self._episode_sums['success_reward'][env_ids].mean():8.2f}
         """
         )
-        print("action mean :", self._actions.mean().item())
-        print("action std  :", self._actions.std().item())
         print("thrust mean :", self._thrust[:, 0, 2].mean().item())
         print(f"Thrust action : {self._actions[:,0].mean():6.3f}")
         print(f"Roll action   : {self._actions[:,1].mean():6.3f}")
