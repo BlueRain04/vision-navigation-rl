@@ -81,9 +81,7 @@ class DroneSharedModel(GaussianMixin, DeterministicMixin, Model):
 
     def act(self, inputs, role):
         if role == "policy":
-            out = GaussianMixin.act(self, inputs, role)
-            print("the policy out value:", out[0][:3])
-            return out
+            return GaussianMixin.act(self, inputs, role)
         elif role == "value":
             return DeterministicMixin.act(self, inputs, role)
     
@@ -120,18 +118,9 @@ class DroneSharedModel(GaussianMixin, DeterministicMixin, Model):
         
         #4 fuse
         joint_emb = torch.cat([visual_emb, state_vec], dim=1)
-        print("rgb mean :", frame_rgb.mean().item())
-        print("rgb std  :", frame_rgb.std().item())
-        
-        print("depth mean :", frame_depth.mean().item())
-        print("depth std  :", frame_depth.std().item())
-        
-        print("state mean :", state_vec.mean().item())
-        print("state std  :", state_vec.std().item())
         shared = self.net(joint_emb)
 
         #5 output
-        print("the log std value:", self.log_std)
         if role == "policy":
             return self.policy_mean(shared), self.log_std, {}
         elif role == "value":
