@@ -129,6 +129,7 @@ class DroneSharedModel(GaussianMixin, DeterministicMixin, Model):
         shared = self.net(joint_emb)
 
         #5 output
+        print(self.log_std)
         if role == "policy":
             return self.policy_mean(shared), self.log_std, {}
         elif role == "value":
