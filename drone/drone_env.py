@@ -365,6 +365,13 @@ class QuadcopterEnv(DirectRLEnv):
         success_reward: {self._episode_sums['success_reward'][env_ids].mean():8.2f}
         """
         )
+        print("action mean :", self._actions.mean().item())
+        print("action std  :", self._actions.std().item())
+        print("thrust mean :", self._thrust[:, 0, 2].mean().item())
+        print(f"Thrust action : {self._actions[:,0].mean():6.3f}")
+        print(f"Roll action   : {self._actions[:,1].mean():6.3f}")
+        print(f"Pitch action  : {self._actions[:,2].mean():6.3f}")
+        print(f"Yaw action    : {self._actions[:,3].mean():6.3f}")
         #reset robot
         root_state = self._robot.data.default_root_state[env_ids].clone() #get a copy from the robot template
         root_state[:, :3] += self.scene.env_origins[env_ids] #get the robot (X, Y, Z) position
