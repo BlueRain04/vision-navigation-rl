@@ -72,7 +72,7 @@ def define_goal_marker():
         prim_path="/Visuals/Command/goal",
         markers= {
             "sphere": sim_utils.SphereCfg(
-                radius = 1.0,
+                radius = 0.2,
                 visual_material = sim_utils.PreviewSurfaceCfg(
                     diffuse_color=(1.0, 0.0, 0.0)
                 ),
@@ -92,8 +92,8 @@ class QuadcopterEnv(DirectRLEnv):
         self.num_obstacles = 5
         self.target_pos = torch.zeros((self.num_envs, 3), device=self.device)
         self.prev_dist = torch.zeros((self.num_envs,), device=self.device)
-       # self.arrows = define_markers()
-       # self.arrows.set_visibility(True)
+        self.arrows = define_markers()
+        self.arrows.set_visibility(True)
         self.goal_marker = define_goal_marker()
         self.goal_marker.set_visibility(True)
         self._body_id = self._robot.find_bodies("body")[0] #this is linked to the camera, make sure that the crazyflie has body index
@@ -184,7 +184,7 @@ class QuadcopterEnv(DirectRLEnv):
             print(f"Pitch act   : {self.actions[:,2].mean():.3f}")
             print(f"Yaw act     : {self.actions[:,3].mean():.3f}")
             print(f"Thrust force : {self._thrust[:, 0, 2].mean():.3f}")
-      #  self._visualize_arrows()
+        self._visualize_arrows()
 
     def _visualize_arrows(self):
         goal_vec = self._get_goal_vec()
@@ -206,9 +206,9 @@ class QuadcopterEnv(DirectRLEnv):
             dim=0,
         )
 
-       # self.arrows.visualize(
-          #  translations=locs, orientations=rots, marker_indices=indices
-       # )
+        self.arrows.visualize(
+            translations=locs, orientations=rots, marker_indices=indices
+        )
         
     def _apply_action(self): #apply the action into the env
         self._robot.set_external_force_and_torque(
