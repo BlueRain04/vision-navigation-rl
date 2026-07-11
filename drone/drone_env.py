@@ -175,7 +175,7 @@ class QuadcopterEnv(DirectRLEnv):
             print(f"Action mean : {self.actions.mean():.3f}")
             print(f"Action std  : {self.actions.std():.3f}")
             print(
-                f"Thrust act  : mean={self._actions[:,0].mean():.3f}, "
+                f"Thrust act  : mean={self.actions[:,0].mean():.3f}, "
                 f"std={self.actions[:,0].std():.3f}, "
                 f"min={self.actions[:,0].min():.3f}, "
                 f"max={self.actions[:,0].max():.3f}"
