@@ -152,6 +152,6 @@ class QuadcopterEnvCfg(DirectRLEnvCfg):
     )
 
     #rewards / logic
-    target_reach_threshold = 0.4
+    target_reach_threshold = 0.8
     lin_vel_reward_scale = -0.05
     ang_vel_reward_scale = -0.01
