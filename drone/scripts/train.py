@@ -19,7 +19,7 @@ from skrl.trainers.torch import SequentialTrainer
 from isaaclab_rl.skrl import SkrlVecEnvWrapper
 
 env_cfg = QuadcopterEnvCfg()
-env_cfg.scene.num_envs = 16
+env_cfg.scene.num_envs = 128
 env_cfg.sim.device = "cuda:0"
 
 env = gym.make("Drone-Nav-Direct-v0", cfg=env_cfg, render_mode="rgb_array")
