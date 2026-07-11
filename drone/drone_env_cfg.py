@@ -31,7 +31,7 @@ class QuadcopterEnvCfg(DirectRLEnvCfg):
     ]
     
     viewer: ViewerCfg = ViewerCfg(
-        eye=(4.0, 4.0, 3.0),      # camera position, offset diagonally and elevated
+        eye=(0.0, -7.0, 8.0),      # camera position, offset diagonally and elevated
         lookat=(0.0, 0.0, 1.0),   # looking at roughly drone-height, not ground level
         env_index=0,               # which parallel environment to view (env_0)
     )
@@ -72,11 +72,11 @@ class QuadcopterEnvCfg(DirectRLEnvCfg):
             [
                 sim_utils.CylinderCfg( 
                 radius=0.2,
-                height=2.2,
+                height=1.0,
                 axis="Z",
-                visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.0, 1.0, 0.0)),
+                visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.0, 0.0, 1.0)),
                 collision_props=sim_utils.CollisionPropertiesCfg(collision_enabled=True),
-                mass_props=sim_utils.MassPropertiesCfg(mass=100.0),
+                mass_props=sim_utils.MassPropertiesCfg(mass=70.0),
                 ),
             ],
             random_choice=False,
