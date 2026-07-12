@@ -165,9 +165,9 @@ class QuadcopterEnvCfg(DirectRLEnvCfg):
     max_tilt_angle = 0.35    # radians (~20 deg), safety cap
     
     # attitude -> torque (P and D on angle error / angular velocity)
-    kp_att = 8.0
-    kd_att = 1.5
-    kp_yaw = 3.0
-    kd_yaw = 0.5
+    kp_att = 0.003
+    kd_att = 0.0006
+    kp_yaw = 0.001
+    kd_yaw = 0.0002
     max_thrust = 0.6   # N, ~2x hover thrust for a 28g drone
     max_torque = 0.01
