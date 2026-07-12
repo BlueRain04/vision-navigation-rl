@@ -108,7 +108,7 @@ class QuadcopterEnv(DirectRLEnv):
         self._prev_yaw = torch.zeros(self.num_envs, device=self.device)
         self._was_near_obstacle = torch.zeros(self.num_envs, dtype=torch.bool, device=self.device)
         self.step_counter = 0
-        self._forward_vec_b already exists
+        #self._forward_vec_b already exists
         self._episode_sums = {
             key: torch.zeros(self.num_envs, dtype=torch.float, device=self.device)
             for key in [
