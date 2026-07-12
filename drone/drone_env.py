@@ -338,7 +338,7 @@ class QuadcopterEnv(DirectRLEnv):
         rewards = {
             "ang_vel": ang_vel * -0.003,
             "collision_reward": collision_val * -12.0,
-            "dist_delta": dist_delta * 0.7,
+            "dist_delta": dist_delta * 0.9,
             "progress_reward": progress_reward,
             "success_reward": success_reward,
             #"alignment_reward": alignment_reward,
