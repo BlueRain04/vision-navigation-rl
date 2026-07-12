@@ -118,7 +118,7 @@ class QuadcopterEnv(DirectRLEnv):
                 "success_reward",
                # "alignment_reward",
            #     "backward_penalty",
-                "ang_vel",
+            #    "ang_vel",
                 "heading_error_penalty",
                 "yaw_change_reward",
               #  "avoid_success_reward"
@@ -168,9 +168,33 @@ class QuadcopterEnv(DirectRLEnv):
     def _pre_physics_step(self, actions: torch.Tensor) -> None:
         self.step_counter += 1
         self.actions = actions.clone().clamp(-1.0, 1.0) #clone the action for independent memory then clip it
+        vel_cmd = self.actions[:, :3] * self.cfg.max_lin_vel
+        yaw_rate_cmd = self.actions[:, 3] * self.cfg.max_yaw_rate
+        current_vel = self._robot.data.root_lin_vel_w
+        vel_error = vel_cmd - current_vel
+        accel_cmd = self.cfg.kp_vel * vel_error
+        accel_cmd[:, 2] += self._gravity_magnitude
+        thrust_mag = self._robot_mass * torch.norm(accel_cmd, dim=-1)
+        thrust_mag = torch.clamp(thrust_mag, min=0.0)
+        desired_pitch = torch.clamp(accel_cmd[:, 0] / (self._gravity_magnitude + 1e-6),
+                                 -self.cfg.max_tilt_angle, self.cfg.max_tilt_angle)
+        desired_roll = torch.clamp(-accel_cmd[:, 1] / (self._gravity_magnitude + 1e-6),
+                                -self.cfg.max_tilt_angle, self.cfg.max_tilt_angle)
+        _, _, current_yaw = math_utils.euler_xyz_from_quat(self._robot.data.root_quat_w)
+        desired_yaw = current_yaw + yaw_rate_cmd * self.step_dt
+        desired_quat = math_utils.quat_from_euler_xyz(desired_roll, desired_pitch, desired_yaw)
+        current_quat = self._robot.data.root_quat_w
+        quat_err = math_utils.quat_mul(desired_quat, math_utils.quat_conjugate(current_quat))
+        att_err_vec = 2.0 * quat_err[:, 1:4] * torch.sign(quat_err[:, 0]).unsqueeze(-1)
+        current_ang_vel = self._robot.data.root_ang_vel_b
+        torque = self.cfg.kp_att * att_err_vec.clone()
+        torque[:, :2] -= self.cfg.kd_att * current_ang_vel[:, :2]
+        torque[:, 2] = self.cfg.kp_yaw * att_err_vec[:, 2] - self.cfg.kd_yaw * current_ang_vel[:, 2]
+        self._thrust[:, 0, 2] = thrust_mag
+        self._moment[:, 0, :] = torque
       #  self._actions = 0.8 * self._actions + 0.2 * actions.clone().clamp(-1.0, 1.0)
-        self._thrust[:, 0, 2] = self.cfg.thrust_to_weight * self._robot_weight * (self.actions[:, 0] + 1.0) / 2.0 #get the thrust action range [-1, 1] and map it to [0, 1] to apply in simulator, assign it as Z force since X Y are not applicable
-        self._moment[:, 0, :] = self._moment_scale * self.actions[:, 1:] #take the roll, pitch, and yas from action scale them then add to moment tensor
+       # self._thrust[:, 0, 2] = self.cfg.thrust_to_weight * self._robot_weight * (self.actions[:, 0] + 1.0) / 2.0 #get the thrust action range [-1, 1] and map it to [0, 1] to apply in simulator, assign it as Z force since X Y are not applicable
+       # self._moment[:, 0, :] = self._moment_scale * self.actions[:, 1:] #take the roll, pitch, and yas from action scale them then add to moment tensor
         self.goal_marker.visualize(self.target_pos)
         if self.common_step_counter % 500 == 0:
             print(f"Action mean : {self.actions.mean():.3f}")
@@ -337,7 +361,7 @@ class QuadcopterEnv(DirectRLEnv):
        # backward_penalty = backward_act * 0.5
 
         rewards = {
-            "ang_vel": ang_vel * -0.005,
+           # "ang_vel": ang_vel * -0.005,
             "collision_reward": collision_val * -12.0,
             "dist_delta": dist_delta * 0.7,
             "progress_reward": progress_reward,
@@ -377,7 +401,6 @@ class QuadcopterEnv(DirectRLEnv):
         Collision: {self._episode_sums['collision_reward'][env_ids].mean():8.2f}
         Heading  : {self._episode_sums['heading_error_penalty'][env_ids].mean():8.2f}
         Yaw      : {self._episode_sums['yaw_change_reward'][env_ids].mean():8.2f}
-        ang_vel     : {self._episode_sums['ang_vel'][env_ids].mean():8.2f}
         success_reward: {self._episode_sums['success_reward'][env_ids].mean():8.2f}
         """
         )
