@@ -155,3 +155,17 @@ class QuadcopterEnvCfg(DirectRLEnvCfg):
     target_reach_threshold = 0.8
     lin_vel_reward_scale = -0.05
     ang_vel_reward_scale = -0.01
+
+    max_lin_vel = 2.0        # m/s, max commandable velocity per axis
+    max_yaw_rate = 1.5       # rad/s, max commandable yaw rate
+    
+    # velocity -> acceleration (P gain only, keep simple)
+    kp_vel = 4.0
+    # acceleration -> tilt angle limit
+    max_tilt_angle = 0.35    # radians (~20 deg), safety cap
+    
+    # attitude -> torque (P and D on angle error / angular velocity)
+    kp_att = 8.0
+    kd_att = 1.5
+    kp_yaw = 3.0
+    kd_yaw = 0.5
