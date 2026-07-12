@@ -190,10 +190,8 @@ class QuadcopterEnv(DirectRLEnv):
         torque = self.cfg.kp_att * att_err_vec.clone()
         torque[:, :2] -= self.cfg.kd_att * current_ang_vel[:, :2]
         torque[:, 2] = self.cfg.kp_yaw * att_err_vec[:, 2] - self.cfg.kd_yaw * current_ang_vel[:, 2]
-       # self._thrust.zero_()
-        self._moment.zero_()
         self._thrust[:, 0, 2] = thrust_mag
-     #   self._moment[:, 0, :] = torque
+        self._moment[:, 0, :] = torque
       #  self._actions = 0.8 * self._actions + 0.2 * actions.clone().clamp(-1.0, 1.0)
        # self._thrust[:, 0, 2] = self.cfg.thrust_to_weight * self._robot_weight * (self.actions[:, 0] + 1.0) / 2.0 #get the thrust action range [-1, 1] and map it to [0, 1] to apply in simulator, assign it as Z force since X Y are not applicable
        # self._moment[:, 0, :] = self._moment_scale * self.actions[:, 1:] #take the roll, pitch, and yas from action scale them then add to moment tensor
