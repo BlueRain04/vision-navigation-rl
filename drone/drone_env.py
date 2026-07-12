@@ -186,10 +186,27 @@ class QuadcopterEnv(DirectRLEnv):
         current_quat = self._robot.data.root_quat_w
         quat_err = math_utils.quat_mul(desired_quat, math_utils.quat_conjugate(current_quat))
         att_err_vec = 2.0 * quat_err[:, 1:4] * torch.sign(quat_err[:, 0]).unsqueeze(-1)
-        current_ang_vel = self._robot.data.root_ang_vel_b
+        current_ang_vel = self._robot.data.root_ang_vel_w
         torque = self.cfg.kp_att * att_err_vec.clone()
         torque[:, :2] -= self.cfg.kd_att * current_ang_vel[:, :2]
         torque[:, 2] = self.cfg.kp_yaw * att_err_vec[:, 2] - self.cfg.kd_yaw * current_ang_vel[:, 2]
+        for name, x in [
+            ("desired_roll", desired_roll),
+            ("desired_pitch", desired_pitch),
+            ("desired_yaw", desired_yaw),
+            ("desired_quat", desired_quat),
+            ("quat_err", quat_err),
+            ("att_err_vec", att_err_vec),
+        ]:
+            if torch.isnan(x).any() or torch.isinf(x).any():
+                print(name, "contains NaN/Inf")
+        if torch.isnan(torque).any():
+            print("NaN in torque!")
+            raise RuntimeError
+
+        if torch.isinf(torque).any():
+            print("Inf in torque!")
+            raise RuntimeError
         self._thrust[:, 0, 2] = thrust_mag
         self._moment[:, 0, :] = torque
       #  self._actions = 0.8 * self._actions + 0.2 * actions.clone().clamp(-1.0, 1.0)
