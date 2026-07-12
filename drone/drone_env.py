@@ -117,7 +117,7 @@ class QuadcopterEnv(DirectRLEnv):
                 "success_reward",
                # "alignment_reward",
            #     "backward_penalty",
-             #   "ang_vel",
+                "ang_vel",
                 "heading_error_penalty",
                 "yaw_change_reward",
               #  "avoid_success_reward"
@@ -336,7 +336,7 @@ class QuadcopterEnv(DirectRLEnv):
        # backward_penalty = backward_act * 0.5
 
         rewards = {
-       #     "ang_vel": ang_vel * -0.005,
+            "ang_vel": ang_vel * -0.003,
             "collision_reward": collision_val * -12.0,
             "dist_delta": dist_delta * 0.7,
             "progress_reward": progress_reward,
