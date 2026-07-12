@@ -169,3 +169,5 @@ class QuadcopterEnvCfg(DirectRLEnvCfg):
     kd_att = 1.5
     kp_yaw = 3.0
     kd_yaw = 0.5
+    max_thrust = 0.6   # N, ~2x hover thrust for a 28g drone
+    max_torque = 0.01
