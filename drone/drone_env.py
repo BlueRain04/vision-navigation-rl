@@ -188,6 +188,7 @@ class QuadcopterEnv(DirectRLEnv):
         att_err_vec = 2.0 * quat_err[:, 1:4] * torch.sign(quat_err[:, 0]).unsqueeze(-1)
         current_ang_vel = self._robot.data.root_ang_vel_b
         torque = self.cfg.kp_att * att_err_vec.clone()
+        torque = torch.clamp(torque, -0.05, 0.05)
         torque[:, :2] -= self.cfg.kd_att * current_ang_vel[:, :2]
         torque[:, 2] = self.cfg.kp_yaw * att_err_vec[:, 2] - self.cfg.kd_yaw * current_ang_vel[:, 2]
         self._thrust[:, 0, 2] = thrust_mag
