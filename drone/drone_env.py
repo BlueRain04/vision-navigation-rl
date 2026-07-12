@@ -176,6 +176,9 @@ class QuadcopterEnv(DirectRLEnv):
         accel_cmd[:, 2] += self._gravity_magnitude
         thrust_mag = self._robot_mass * torch.norm(accel_cmd, dim=-1)
         thrust_mag = torch.clamp(thrust_mag, min=0.0)
+        print("mass =", self._robot_mass)
+        print("gravity =", self._gravity_magnitude)
+        print("kp_vel =", self.cfg.kp_vel)
         for name, x in [
             ("actions", self.actions),
             ("vel_cmd", vel_cmd),
@@ -196,6 +199,11 @@ class QuadcopterEnv(DirectRLEnv):
         desired_yaw = current_yaw + yaw_rate_cmd * self.step_dt
         desired_quat = math_utils.quat_from_euler_xyz(desired_roll, desired_pitch, desired_yaw)
         current_quat = self._robot.data.root_quat_w
+        if torch.isnan(current_quat).any():
+            print("current_quat NaN")
+            ids = torch.where(torch.isnan(current_quat).any(dim=1))[0]
+            print(current_quat[ids[:5]])
+            raise RuntimeError
         quat_err = math_utils.quat_mul(desired_quat, math_utils.quat_conjugate(current_quat))
         att_err_vec = 2.0 * quat_err[:, 1:4] * torch.sign(quat_err[:, 0]).unsqueeze(-1)
         current_ang_vel = self._robot.data.root_ang_vel_b
