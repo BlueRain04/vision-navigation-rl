@@ -176,21 +176,6 @@ class QuadcopterEnv(DirectRLEnv):
         accel_cmd[:, 2] += self._gravity_magnitude
         thrust_mag = self._robot_mass * torch.norm(accel_cmd, dim=-1)
         thrust_mag = torch.clamp(thrust_mag, 0.0, self.cfg.max_thrust)
-        print("mass =", self._robot_mass)
-        print("gravity =", self._gravity_magnitude)
-        print("kp_vel =", self.cfg.kp_vel)
-        for name, x in [
-            ("actions", self.actions),
-            ("vel_cmd", vel_cmd),
-            ("current_vel", current_vel),
-            ("vel_error", vel_error),
-            ("accel_cmd", accel_cmd),
-        ]:
-            if torch.isnan(x).any():
-                print(name, "NaN")
-        
-            if torch.isinf(x).any():
-                print(name, "Inf")
         desired_pitch = torch.clamp(accel_cmd[:, 0] / (self._gravity_magnitude + 1e-6),
                                  -self.cfg.max_tilt_angle, self.cfg.max_tilt_angle)
         desired_roll = torch.clamp(-accel_cmd[:, 1] / (self._gravity_magnitude + 1e-6),
@@ -221,16 +206,6 @@ class QuadcopterEnv(DirectRLEnv):
         if torch.isinf(current_vel).any():
             print("current_vel Inf")
             raise RuntimeError
-        for name, x in [
-            ("desired_roll", desired_roll),
-            ("desired_pitch", desired_pitch),
-            ("desired_yaw", desired_yaw),
-            ("desired_quat", desired_quat),
-            ("quat_err", quat_err),
-            ("att_err_vec", att_err_vec),
-        ]:
-            if torch.isnan(x).any() or torch.isinf(x).any():
-                print(name, "contains NaN/Inf")
         if torch.isnan(torque).any():
             print("NaN in torque!")
             raise RuntimeError
