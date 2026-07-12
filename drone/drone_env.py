@@ -412,8 +412,10 @@ class QuadcopterEnv(DirectRLEnv):
         reached = dist < self.cfg.target_reach_threshold #when robot reached the goal by threshold
 
         crashed = terminate_on_contact(self, "contact_sensor_body", threshold=0.1) #when crashed with ods
+        
+        too_high = (self._robot.data.root_pos_w[:, 2] - self.scene.env_origins[:, 2]) > self.cfg.max_altitude
 
-        return (reached | crashed), time_out
+        return (reached | crashed | too_high), time_out
     
     def _reset_idx(self, env_ids: torch.Tensor | None): #not all envs reset on the same time
         if env_ids is None: #if all envs are done
