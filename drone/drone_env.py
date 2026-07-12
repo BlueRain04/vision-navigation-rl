@@ -175,7 +175,7 @@ class QuadcopterEnv(DirectRLEnv):
         accel_cmd = self.cfg.kp_vel * vel_error
         accel_cmd[:, 2] += self._gravity_magnitude
         thrust_mag = self._robot_mass * torch.norm(accel_cmd, dim=-1)
-        thrust_mag = torch.clamp(thrust_mag, min=0.0)
+        thrust_mag = torch.clamp(thrust_mag, 0.0, self.cfg.max_thrust)
         print("mass =", self._robot_mass)
         print("gravity =", self._gravity_magnitude)
         print("kp_vel =", self.cfg.kp_vel)
@@ -210,6 +210,7 @@ class QuadcopterEnv(DirectRLEnv):
         torque = self.cfg.kp_att * att_err_vec.clone()
         torque[:, :2] -= self.cfg.kd_att * current_ang_vel[:, :2]
         torque[:, 2] = self.cfg.kp_yaw * att_err_vec[:, 2] - self.cfg.kd_yaw * current_ang_vel[:, 2]
+        torque = torch.clamp(torque, -self.cfg.max_torque, self.cfg.max_torque)
         if torch.isnan(current_vel).any():
             print("current_vel NaN")
             ids = torch.where(torch.isnan(current_vel).any(dim=1))[0]
