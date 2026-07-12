@@ -198,10 +198,20 @@ class QuadcopterEnv(DirectRLEnv):
         current_quat = self._robot.data.root_quat_w
         quat_err = math_utils.quat_mul(desired_quat, math_utils.quat_conjugate(current_quat))
         att_err_vec = 2.0 * quat_err[:, 1:4] * torch.sign(quat_err[:, 0]).unsqueeze(-1)
-        current_ang_vel = self._robot.data.root_ang_vel_w
+        current_ang_vel = self._robot.data.root_ang_vel_b
         torque = self.cfg.kp_att * att_err_vec.clone()
         torque[:, :2] -= self.cfg.kd_att * current_ang_vel[:, :2]
         torque[:, 2] = self.cfg.kp_yaw * att_err_vec[:, 2] - self.cfg.kd_yaw * current_ang_vel[:, 2]
+        if torch.isnan(current_vel).any():
+            print("current_vel NaN")
+            ids = torch.where(torch.isnan(current_vel).any(dim=1))[0]
+            print(ids[:10])
+            print(current_vel[ids[:5]])
+            raise RuntimeError
+        
+        if torch.isinf(current_vel).any():
+            print("current_vel Inf")
+            raise RuntimeError
         for name, x in [
             ("desired_roll", desired_roll),
             ("desired_pitch", desired_pitch),
