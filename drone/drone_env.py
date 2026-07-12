@@ -176,6 +176,18 @@ class QuadcopterEnv(DirectRLEnv):
         accel_cmd[:, 2] += self._gravity_magnitude
         thrust_mag = self._robot_mass * torch.norm(accel_cmd, dim=-1)
         thrust_mag = torch.clamp(thrust_mag, min=0.0)
+        for name, x in [
+            ("actions", self.actions),
+            ("vel_cmd", vel_cmd),
+            ("current_vel", current_vel),
+            ("vel_error", vel_error),
+            ("accel_cmd", accel_cmd),
+        ]:
+            if torch.isnan(x).any():
+                print(name, "NaN")
+        
+            if torch.isinf(x).any():
+                print(name, "Inf")
         desired_pitch = torch.clamp(accel_cmd[:, 0] / (self._gravity_magnitude + 1e-6),
                                  -self.cfg.max_tilt_angle, self.cfg.max_tilt_angle)
         desired_roll = torch.clamp(-accel_cmd[:, 1] / (self._gravity_magnitude + 1e-6),
