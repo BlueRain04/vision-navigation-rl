@@ -165,7 +165,7 @@ class QuadcopterEnv(DirectRLEnv):
     def _get_goal_vec(self):
         return self.target_pos - self._robot.data.root_pos_w
     
-    def _pre_physics_step(self, actions: torch.Tensor) -> None:
+    def _pre_physics_step(self, actions: torch.Tensor) -> None: #we might need to tune the hyperparameter in the cfg
         self.step_counter += 1
         self.actions = actions.clone().clamp(-1.0, 1.0) #clone the action for independent memory then clip it
         vel_cmd = self.actions[:, :3] * self.cfg.max_lin_vel
@@ -200,15 +200,19 @@ class QuadcopterEnv(DirectRLEnv):
             print(f"Action mean : {self.actions.mean():.3f}")
             print(f"Action std  : {self.actions.std():.3f}")
             print(
-                f"Thrust act  : mean={self.actions[:,0].mean():.3f}, "
+                f"Vx cmd      : mean={self.actions[:,0].mean():.3f}, "
                 f"std={self.actions[:,0].std():.3f}, "
                 f"min={self.actions[:,0].min():.3f}, "
                 f"max={self.actions[:,0].max():.3f}"
             )
-            print(f"Roll act    : {self.actions[:,1].mean():.3f}")
-            print(f"Pitch act   : {self.actions[:,2].mean():.3f}")
-            print(f"Yaw act     : {self.actions[:,3].mean():.3f}")
-            print(f"Thrust force : {self._thrust[:, 0, 2].mean():.3f}")
+            print(f"Vy cmd      : {self.actions[:,1].mean():.3f}")
+            print(f"Vz cmd      : {self.actions[:,2].mean():.3f}")
+            print(f"Yaw rate cmd: {self.actions[:,3].mean():.3f}")
+            print(f"Thrust force: mean={self._thrust[:, 0, 2].mean():.3f}, "
+              f"min={self._thrust[:, 0, 2].min():.3f}, "
+              f"max={self._thrust[:, 0, 2].max():.3f}")
+            print(f"Torque      : mean={self._moment[:, 0, :].mean(dim=0)}")
+            print(f"Actual vel  : mean={self._robot.data.root_lin_vel_w.mean(dim=0)}")
         self._visualize_arrows()
 
     def _visualize_arrows(self):
