@@ -117,7 +117,7 @@ class QuadcopterEnv(DirectRLEnv):
                 "success_reward",
                # "alignment_reward",
            #     "backward_penalty",
-                "ang_vel",
+             #   "ang_vel",
                 "heading_error_penalty",
                 "yaw_change_reward",
               #  "avoid_success_reward"
@@ -336,7 +336,7 @@ class QuadcopterEnv(DirectRLEnv):
        # backward_penalty = backward_act * 0.5
 
         rewards = {
-            "ang_vel": ang_vel * -0.005,
+       #     "ang_vel": ang_vel * -0.005,
             "collision_reward": collision_val * -12.0,
             "dist_delta": dist_delta * 0.7,
             "progress_reward": progress_reward,
@@ -376,7 +376,6 @@ class QuadcopterEnv(DirectRLEnv):
         Collision: {self._episode_sums['collision_reward'][env_ids].mean():8.2f}
         Heading  : {self._episode_sums['heading_error_penalty'][env_ids].mean():8.2f}
         Yaw      : {self._episode_sums['yaw_change_reward'][env_ids].mean():8.2f}
-        Ang Vel  : {self._episode_sums['ang_vel'][env_ids].mean():8.2f}
         success_reward: {self._episode_sums['success_reward'][env_ids].mean():8.2f}
         """
         )
