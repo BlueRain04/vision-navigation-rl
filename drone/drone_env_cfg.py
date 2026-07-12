@@ -16,7 +16,7 @@ from isaaclab.envs import ViewerCfg
 class QuadcopterEnvCfg(DirectRLEnvCfg):
     #environment
     decimation = 4
-    episode_length_s = 60.0
+    episode_length_s = 20.0
     action_space = 4
     history_len = 3 #number of frames to stack
     observation_space = gym.spaces.Dict({
