@@ -173,4 +173,4 @@ class QuadcopterEnvCfg(DirectRLEnvCfg):
     max_torque = 0.01
     max_altitude = 8.0   
     target_altitude = 1.0
-    alt_penality_scale = -0.15
+    alt_penalty_scale = -0.15
