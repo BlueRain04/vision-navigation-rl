@@ -221,7 +221,7 @@ class QuadcopterEnv(DirectRLEnv):
             )
             print(f"Vy cmd      : {self.actions[:,1].mean():.3f}")
             print(f"Vz cmd      : {self.actions[:,2].mean():.3f}")
-            print(f"Yaw rate cmd: {self.actions[:,3].mean():.3f}")
+         #   print(f"Yaw rate cmd: {self.actions[:,3].mean():.3f}")
             print(f"Thrust force: mean={self._thrust[:, 0, 2].mean():.3f}, "
               f"min={self._thrust[:, 0, 2].min():.3f}, "
               f"max={self._thrust[:, 0, 2].max():.3f}")
