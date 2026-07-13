@@ -89,7 +89,7 @@ class QuadcopterEnv(DirectRLEnv):
         self._rgb_hist: torch.Tensor | None = None #start the sps with None camera hist, later could be a tensor
         self._depth_hist: torch.Tensor | None = None #start the sps with None camera hist, later could be a tensor
         self.history_len = cfg.history_len
-        self.num_obstacles = 5
+        self.num_obstacles = 10
         self.target_pos = torch.zeros((self.num_envs, 3), device=self.device)
         self.prev_dist = torch.zeros((self.num_envs,), device=self.device)
         self.arrows = define_markers()
@@ -108,6 +108,9 @@ class QuadcopterEnv(DirectRLEnv):
         self._prev_yaw = torch.zeros(self.num_envs, device=self.device)
         self._was_near_obstacle = torch.zeros(self.num_envs, dtype=torch.bool, device=self.device)
         self.step_counter = 0
+        self._episode_count = torch.zeros(self.num_envs, dtype=torch.float, device=self.device)
+        self._success_count = torch.zeros(self.num_envs, dtype=torch.float, device=self.device)
+        self._collision_count = torch.zeros(self.num_envs, dtype=torch.float, device=self.device)
         #self._forward_vec_b already exists
         self._episode_sums = {
             key: torch.zeros(self.num_envs, dtype=torch.float, device=self.device)
@@ -389,7 +392,7 @@ class QuadcopterEnv(DirectRLEnv):
             "success_reward": success_reward,
             #"alignment_reward": alignment_reward,
             "heading_error_penalty": -heading_error_penalty * 0.03,
-            "yaw_change_reward": yaw_change_reward * 0.05,
+            "yaw_change_reward": yaw_change_reward,
             "alt_penalty": alt_penalty,
           #  "avoid_success_reward": avoid_success_reward * 0.3,
          #   "backward_penalty": backward_penalty,
@@ -407,6 +410,9 @@ class QuadcopterEnv(DirectRLEnv):
         reached = dist < self.cfg.target_reach_threshold #when robot reached the goal by threshold
 
         crashed = terminate_on_contact(self, "contact_sensor_body", threshold=0.1) #when crashed with ods
+
+        self._last_reached = reached
+        self._last_crashed = crashed
         
         too_high = (self._robot.data.root_pos_w[:, 2] - self.scene.env_origins[:, 2]) > self.cfg.max_altitude
 
@@ -416,6 +422,13 @@ class QuadcopterEnv(DirectRLEnv):
         if env_ids is None: #if all envs are done
             env_ids = self._robot._ALL_INDICES #selecting all envs to reset
         num_resets = len(env_ids) #check
+
+        self._episode_count[env_ids] += 1
+        self._success_count[env_ids] += self._last_reached[env_ids].float()
+        self._collision_count[env_ids] += self._last_crashed[env_ids].float()
+
+        success_rate = (self._success_count[env_ids].sum() / self._episode_count[env_ids].sum()).item()
+        collision_rate = (self._collision_count[env_ids].sum() / self._episode_count[env_ids].sum()).item()
 
         print(
             f"""
@@ -427,6 +440,8 @@ class QuadcopterEnv(DirectRLEnv):
         Yaw      : {self._episode_sums['yaw_change_reward'][env_ids].mean():8.2f}
         success_reward: {self._episode_sums['success_reward'][env_ids].mean():8.2f}
         alt_penalty: {self._episode_sums['alt_penalty'][env_ids].mean():8.2f}
+        Success Rate  : {success_rate:6.2%}
+        Collision Rate: {collision_rate:6.2%}
         """
         )
         #reset robot
