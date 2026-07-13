@@ -169,27 +169,29 @@ class QuadcopterEnv(DirectRLEnv):
     def _pre_physics_step(self, actions: torch.Tensor) -> None: #we might need to tune the hyperparameter in the cfg
         self.step_counter += 1
         self.actions = actions.clone().clamp(-1.0, 1.0) #clone the action for independent memory then clip it
-        vel_cmd = self.actions[:, :3] * self.cfg.max_lin_vel
+        vel_cmd = torch.stack([
+            self.actions[:, 0] * self.cfg.max_lin_vel,
+            self.actions[:, 1] * self.cfg.max_lin_vel,
+            self.actions[:, 2] * self.cfg.max_vert_vel,
+        ], dim=-1)
         yaw_rate_cmd = self.actions[:, 3] * self.cfg.max_yaw_rate
         current_vel = self._robot.data.root_lin_vel_w
         vel_error = vel_cmd - current_vel
         accel_cmd = self.cfg.kp_vel * vel_error
         accel_cmd[:, 2] += self._gravity_magnitude
-        thrust_mag = self._robot_mass * torch.norm(accel_cmd, dim=-1)
-        thrust_mag = torch.clamp(thrust_mag, 0.0, self.cfg.max_thrust)
         desired_pitch = torch.clamp(accel_cmd[:, 0] / (self._gravity_magnitude + 1e-6),
                                  -self.cfg.max_tilt_angle, self.cfg.max_tilt_angle)
         desired_roll = torch.clamp(-accel_cmd[:, 1] / (self._gravity_magnitude + 1e-6),
                                 -self.cfg.max_tilt_angle, self.cfg.max_tilt_angle)
+        cos_tilt = torch.cos(desired_roll) * torch.cos(desired_pitch)
+        cos_tilt = torch.clamp(cos_tilt, min=0.2)
+        thrust_needed_z = self._robot_mass * accel_cmd[:, 2]
+        thrust_mag = thrust_needed_z / cos_tilt
+        thrust_mag = torch.clamp(thrust_mag, 0.0, self.cfg.max_thrust)
         _, _, current_yaw = math_utils.euler_xyz_from_quat(self._robot.data.root_quat_w)
         desired_yaw = current_yaw + yaw_rate_cmd * self.step_dt
         desired_quat = math_utils.quat_from_euler_xyz(desired_roll, desired_pitch, desired_yaw)
         current_quat = self._robot.data.root_quat_w
-        if torch.isnan(current_quat).any():
-            print("current_quat NaN")
-            ids = torch.where(torch.isnan(current_quat).any(dim=1))[0]
-            print(current_quat[ids[:5]])
-            raise RuntimeError
         quat_err = math_utils.quat_mul(desired_quat, math_utils.quat_conjugate(current_quat))
         att_err_vec = 2.0 * quat_err[:, 1:4] * torch.sign(quat_err[:, 0]).unsqueeze(-1)
         current_ang_vel = self._robot.data.root_ang_vel_b
@@ -197,29 +199,8 @@ class QuadcopterEnv(DirectRLEnv):
         torque[:, :2] -= self.cfg.kd_att * current_ang_vel[:, :2]
         torque[:, 2] = self.cfg.kp_yaw * att_err_vec[:, 2] - self.cfg.kd_yaw * current_ang_vel[:, 2]
         torque = torch.clamp(torque, -self.cfg.max_torque, self.cfg.max_torque)
-        if torch.isnan(current_vel).any():
-            print("current_vel NaN")
-            ids = torch.where(torch.isnan(current_vel).any(dim=1))[0]
-            print(ids[:10])
-            print(current_vel[ids[:5]])
-            raise RuntimeError
-        
-        if torch.isinf(current_vel).any():
-            print("current_vel Inf")
-            raise RuntimeError
-        if torch.isnan(torque).any():
-            print("NaN in torque!")
-            raise RuntimeError
-
-        if torch.isinf(torque).any():
-            print("Inf in torque!")
-            raise RuntimeError
         self._thrust[:, 0, 2] = thrust_mag
         self._moment[:, 0, :] = torque
-        vz_cmd = self.actions[:, 2] * self.cfg.max_vert_vel  # instead of using max_lin_vel for Z
-        vel_cmd = torch.stack([self.actions[:,0]*self.cfg.max_lin_vel,
-                         self.actions[:,1]*self.cfg.max_lin_vel,
-                         vz_cmd], dim=-1)
       #  self._actions = 0.8 * self._actions + 0.2 * actions.clone().clamp(-1.0, 1.0)
        # self._thrust[:, 0, 2] = self.cfg.thrust_to_weight * self._robot_weight * (self.actions[:, 0] + 1.0) / 2.0 #get the thrust action range [-1, 1] and map it to [0, 1] to apply in simulator, assign it as Z force since X Y are not applicable
        # self._moment[:, 0, :] = self._moment_scale * self.actions[:, 1:] #take the roll, pitch, and yas from action scale them then add to moment tensor
