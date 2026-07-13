@@ -100,19 +100,19 @@ class QuadcopterEnvCfg(DirectRLEnvCfg):
     obstacle5: RigidObjectCfg = replace(
         _base_obstacle, prim_path="/World/envs/env_.*/Obstacle5"
     )
-    obstacle5: RigidObjectCfg = replace(
+    obstacle6: RigidObjectCfg = replace(
         _base_obstacle, prim_path="/World/envs/env_.*/Obstacle6"
     )
-    obstacle5: RigidObjectCfg = replace(
+    obstacle7: RigidObjectCfg = replace(
         _base_obstacle, prim_path="/World/envs/env_.*/Obstacle7"
     )
-    obstacle5: RigidObjectCfg = replace(
+    obstacle8: RigidObjectCfg = replace(
         _base_obstacle, prim_path="/World/envs/env_.*/Obstacle8"
     )
-    obstacle5: RigidObjectCfg = replace(
+    obstacle9: RigidObjectCfg = replace(
         _base_obstacle, prim_path="/World/envs/env_.*/Obstacle9"
     )
-    obstacle5: RigidObjectCfg = replace(
+    obstacle10: RigidObjectCfg = replace(
         _base_obstacle, prim_path="/World/envs/env_.*/Obstacle10"
     )
 
