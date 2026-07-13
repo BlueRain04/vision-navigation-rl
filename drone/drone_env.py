@@ -216,6 +216,10 @@ class QuadcopterEnv(DirectRLEnv):
             raise RuntimeError
         self._thrust[:, 0, 2] = thrust_mag
         self._moment[:, 0, :] = torque
+        vz_cmd = self.actions[:, 2] * self.cfg.max_vert_vel  # instead of using max_lin_vel for Z
+        vel_cmd = torch.stack([self.actions[:,0]*self.cfg.max_lin_vel,
+                         self.actions[:,1]*self.cfg.max_lin_vel,
+                         vz_cmd], dim=-1)
       #  self._actions = 0.8 * self._actions + 0.2 * actions.clone().clamp(-1.0, 1.0)
        # self._thrust[:, 0, 2] = self.cfg.thrust_to_weight * self._robot_weight * (self.actions[:, 0] + 1.0) / 2.0 #get the thrust action range [-1, 1] and map it to [0, 1] to apply in simulator, assign it as Z force since X Y are not applicable
        # self._moment[:, 0, :] = self._moment_scale * self.actions[:, 1:] #take the roll, pitch, and yas from action scale them then add to moment tensor
