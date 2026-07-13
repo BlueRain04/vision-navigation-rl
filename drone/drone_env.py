@@ -111,6 +111,8 @@ class QuadcopterEnv(DirectRLEnv):
         self._episode_count = torch.zeros(self.num_envs, dtype=torch.float, device=self.device)
         self._success_count = torch.zeros(self.num_envs, dtype=torch.float, device=self.device)
         self._collision_count = torch.zeros(self.num_envs, dtype=torch.float, device=self.device)
+        self._last_reached = torch.zeros(self.num_envs, dtype=torch.bool, device=self.device)
+        self._last_crashed = torch.zeros(self.num_envs, dtype=torch.bool, device=self.device)
         #self._forward_vec_b already exists
         self._episode_sums = {
             key: torch.zeros(self.num_envs, dtype=torch.float, device=self.device)
