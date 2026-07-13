@@ -147,6 +147,11 @@ class QuadcopterEnv(DirectRLEnv):
             self.cfg.obstacle3,
             self.cfg.obstacle4,
             self.cfg.obstacle5,
+            self.cfg.obstacle6,
+            self.cfg.obstacle7,
+            self.cfg.obstacle8,
+            self.cfg.obstacle9,
+            self.cfg.obstacle10,
         ]
         for i, obs_cfg in enumerate(obs_configs, 1):
             obs_cfg.spawn.func(
