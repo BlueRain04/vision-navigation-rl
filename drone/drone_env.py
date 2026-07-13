@@ -169,12 +169,17 @@ class QuadcopterEnv(DirectRLEnv):
     def _pre_physics_step(self, actions: torch.Tensor) -> None: #we might need to tune the hyperparameter in the cfg
         self.step_counter += 1
         self.actions = actions.clone().clamp(-1.0, 1.0) #clone the action for independent memory then clip it
+        fwd_speed_cmd = self.actions[:, 0] * self.cfg.max_fwd_vel
+        vz_cmd = self.actions[:, 1] * self.cfg.max_vert_vel
+        yaw_rate_cmd = self.actions[:, 2] * self.cfg.max_yaw_rate
+        forward_w = math_utils.quat_apply(self._robot.data.root_quat_w, self._forward_vec_b)
+        forward_w[:, 2] = 0.0
+        forward_w = forward_w / (torch.norm(forward_w, dim=-1, keepdim=True) + 1e-6)
         vel_cmd = torch.stack([
-            self.actions[:, 0] * self.cfg.max_lin_vel,
-            self.actions[:, 1] * self.cfg.max_lin_vel,
-            self.actions[:, 2] * self.cfg.max_vert_vel,
+            forward_w[:, 0] * fwd_speed_cmd,
+            forward_w[:, 1] * fwd_speed_cmd,
+            vz_cmd,
         ], dim=-1)
-        yaw_rate_cmd = self.actions[:, 3] * self.cfg.max_yaw_rate
         current_vel = self._robot.data.root_lin_vel_w
         vel_error = vel_cmd - current_vel
         accel_cmd = self.cfg.kp_vel * vel_error
