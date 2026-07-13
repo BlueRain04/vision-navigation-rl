@@ -121,6 +121,7 @@ class QuadcopterEnv(DirectRLEnv):
             #    "ang_vel",
                 "heading_error_penalty",
                 "yaw_change_reward",
+                "alt_penalty",
               #  "avoid_success_reward"
             ]
         }
@@ -372,6 +373,9 @@ class QuadcopterEnv(DirectRLEnv):
         )
         self._prev_yaw = yaw.clone()
 
+        alt_error = torch.abs(self._robot.data.root_pos_w[:, 2] - self.scene.env_origins[:, 2] - self.cfg.target_altitude)
+        alt_penalty = alt_error * self.cfg.alt_penalty_scale
+
         #7 avoid-success bonus (Rule 3)
         # fires when drone WAS near an obstacle last step, and is no longer, and didn't crash
       #  just_cleared = self._was_near_obstacle & (~obstacle_detected) & (~collision_val.bool())
@@ -396,6 +400,7 @@ class QuadcopterEnv(DirectRLEnv):
             #"alignment_reward": alignment_reward,
             "heading_error_penalty": -heading_error_penalty * 0.03,
             "yaw_change_reward": yaw_change_reward * 0.05,
+            "alt_penalty": alt_penalty,
           #  "avoid_success_reward": avoid_success_reward * 0.3,
          #   "backward_penalty": backward_penalty,
         }
@@ -431,6 +436,7 @@ class QuadcopterEnv(DirectRLEnv):
         Heading  : {self._episode_sums['heading_error_penalty'][env_ids].mean():8.2f}
         Yaw      : {self._episode_sums['yaw_change_reward'][env_ids].mean():8.2f}
         success_reward: {self._episode_sums['success_reward'][env_ids].mean():8.2f}
+        alt_penalty: {self._episode_sums['alt_penalty'][env_ids].mean():8.2f}
         """
         )
         #reset robot
