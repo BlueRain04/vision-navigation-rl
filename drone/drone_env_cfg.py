@@ -17,7 +17,7 @@ class QuadcopterEnvCfg(DirectRLEnvCfg):
     #environment
     decimation = 4
     episode_length_s = 20.0
-    action_space = 4
+    action_space = 3
     history_len = 3 #number of frames to stack
     observation_space = gym.spaces.Dict({
         "rgb": gym.spaces.Box(low=0, high=255, shape=(history_len, 64, 64, 3), dtype=float),#check the high value could be 1!
