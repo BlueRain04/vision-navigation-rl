@@ -239,6 +239,7 @@ class QuadcopterEnv(DirectRLEnv):
             )
             print(f"Vz cmd      : {vz_cmd.mean():.3f}")
             print(f"Yaw rate cmd:  {yaw_rate_cmd.mean():.3f}")
+            print(f"forward_w: {forward_w.mean(dim=0)}")
          #   print(f"Yaw rate cmd: {self.actions[:,3].mean():.3f}")
             print(f"Thrust force: mean={self._thrust[:, 0, 2].mean():.3f}, "
               f"min={self._thrust[:, 0, 2].min():.3f}, "
