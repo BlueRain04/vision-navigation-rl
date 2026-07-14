@@ -250,6 +250,8 @@ class QuadcopterEnv(DirectRLEnv):
             actual_fwd_speed = torch.sum(actual_vel_w * forward_w, dim=-1)
             print(f"Actual fwd speed  : mean={actual_fwd_speed.mean():.3f}  (compare directly to Fwd cmd)")
             print(f"Actual vz         : mean={actual_vel_w[:, 2].mean():.3f}  (compare directly to Vz cmd)")
+            horiz_speed = torch.norm(self._robot.data.root_lin_vel_w[:, :2], dim=-1)
+            print(f"Horizontal speed (any direction): mean={horiz_speed.mean():.3f}")
         self._visualize_arrows()
 
     def _visualize_arrows(self):
