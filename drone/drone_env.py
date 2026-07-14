@@ -10,6 +10,7 @@ from dataclasses import replace
 from isaaclab.sensors import TiledCamera, ContactSensor
 import isaaclab.utils.math as math_utils
 import math
+import os
 
 def contact_penalty(env,
     contact_sensor_name: str,
@@ -113,6 +114,13 @@ class QuadcopterEnv(DirectRLEnv):
         self._collision_count = torch.zeros(self.num_envs, dtype=torch.float, device=self.device)
         self._last_reached = torch.zeros(self.num_envs, dtype=torch.bool, device=self.device)
         self._last_crashed = torch.zeros(self.num_envs, dtype=torch.bool, device=self.device)
+        self._global_episodes = 0
+        self._global_successes = 0
+        self._global_collisions = 0
+        self._log_path = "/workspace/vision-navigation-rl/training_stats.csv"
+        if not os.path.exists(self._log_path):
+            with open(self._log_path, "w") as f:
+                f.write("step,episodes,successes,collisions,success_rate,collision_rate\n")
         #self._forward_vec_b already exists
         self._episode_sums = {
             key: torch.zeros(self.num_envs, dtype=torch.float, device=self.device)
@@ -394,7 +402,7 @@ class QuadcopterEnv(DirectRLEnv):
         rewards = {
            # "ang_vel": ang_vel * -0.005,
             "collision_reward": collision_val * -12.0,
-            "dist_delta": dist_delta * 0.7,
+            "dist_delta": dist_delta * 1.0,
             "progress_reward": progress_reward,
             "success_reward": success_reward,
             #"alignment_reward": alignment_reward,
@@ -430,12 +438,17 @@ class QuadcopterEnv(DirectRLEnv):
             env_ids = self._robot._ALL_INDICES #selecting all envs to reset
         num_resets = len(env_ids) #check
 
-        self._episode_count[env_ids] += 1
-        self._success_count[env_ids] += self._last_reached[env_ids].float()
-        self._collision_count[env_ids] += self._last_crashed[env_ids].float()
-
-        success_rate = (self._success_count[env_ids].sum() / self._episode_count[env_ids].sum()).item()
-        collision_rate = (self._collision_count[env_ids].sum() / self._episode_count[env_ids].sum()).item()
+        n = len(env_ids)
+        self._global_episodes += n
+        self._global_successes += self._last_reached[env_ids].sum().item()
+        self._global_collisions += self._last_crashed[env_ids].sum().item()
+        
+        success_rate = self._global_successes / max(self._global_episodes, 1)
+        collision_rate = self._global_collisions / max(self._global_episodes, 1)
+        
+        with open(self._log_path, "a") as f:
+            f.write(f"{self.common_step_counter},{self._global_episodes},{self._global_successes},"
+                    f"{self._global_collisions},{success_rate:.4f},{collision_rate:.4f}\n")
 
         print(
             f"""
@@ -447,8 +460,8 @@ class QuadcopterEnv(DirectRLEnv):
         Yaw      : {self._episode_sums['yaw_change_reward'][env_ids].mean():8.2f}
         success_reward: {self._episode_sums['success_reward'][env_ids].mean():8.2f}
         alt_penalty: {self._episode_sums['alt_penalty'][env_ids].mean():8.2f}
-        Success Rate  : {success_rate:6.2%}
-        Collision Rate: {collision_rate:6.2%}
+        Cumulative Success Rate  : {success_rate:6.2%}  ({self._global_successes}/{self._global_episodes})
+        Cumulative Collision Rate: {collision_rate:6.2%}  ({self._global_collisions}/{self._global_episodes})
         """
         )
         #reset robot
