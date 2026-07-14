@@ -172,7 +172,7 @@ class QuadcopterEnvCfg(DirectRLEnvCfg):
     ang_vel_reward_scale = -0.01
 
     max_lin_vel = 2.0        # m/s, max commandable velocity per axis
-    max_yaw_rate = 1.5       # rad/s, max commandable yaw rate
+    max_yaw_rate = 0.8       # rad/s, max commandable yaw rate
     
     # velocity -> acceleration (P gain only, keep simple)
     kp_vel = 10.0
