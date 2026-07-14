@@ -232,19 +232,23 @@ class QuadcopterEnv(DirectRLEnv):
             print(f"Action mean : {self.actions.mean():.3f}")
             print(f"Action std  : {self.actions.std():.3f}")
             print(
-                f"Vx cmd      : mean={self.actions[:,0].mean():.3f}, "
-                f"std={self.actions[:,0].std():.3f}, "
-                f"min={self.actions[:,0].min():.3f}, "
-                f"max={self.actions[:,0].max():.3f}"
+                f"Fwd cmd     : mean={fwd_speed_cmd.mean():.3f}, "
+                f"std={fwd_speed_cmd.std():.3f}, "
+                f"min={fwd_speed_cmd.min():.3f}, "
+                f"max={fwd_speed_cmd.max():.3f}"
             )
-            print(f"Vy cmd      : {self.actions[:,1].mean():.3f}")
-            print(f"Vz cmd      : {self.actions[:,2].mean():.3f}")
+            print(f"Vz cmd      : {vz_cmd.mean():.3f}")
+            print(f"Yaw rate cmd:  {yaw_rate_cmd.mean():.3f}")
          #   print(f"Yaw rate cmd: {self.actions[:,3].mean():.3f}")
             print(f"Thrust force: mean={self._thrust[:, 0, 2].mean():.3f}, "
               f"min={self._thrust[:, 0, 2].min():.3f}, "
               f"max={self._thrust[:, 0, 2].max():.3f}")
             print(f"Torque      : mean={self._moment[:, 0, :].mean(dim=0)}")
-            print(f"Actual vel  : mean={self._robot.data.root_lin_vel_w.mean(dim=0)}")
+            actual_vel_w = self._robot.data.root_lin_vel_w
+            print(f"Actual vel (world) : mean={actual_vel_w.mean(dim=0)}")
+            actual_fwd_speed = torch.sum(actual_vel_w * forward_w, dim=-1)
+            print(f"Actual fwd speed  : mean={actual_fwd_speed.mean():.3f}  (compare directly to Fwd cmd)")
+            print(f"Actual vz         : mean={actual_vel_w[:, 2].mean():.3f}  (compare directly to Vz cmd)")
         self._visualize_arrows()
 
     def _visualize_arrows(self):
