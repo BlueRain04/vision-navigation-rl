@@ -410,7 +410,7 @@ class QuadcopterEnv(DirectRLEnv):
             "progress_reward": progress_reward,
             "success_reward": success_reward,
             #"alignment_reward": alignment_reward,
-            "heading_error_penalty": -heading_error_penalty * 0.03,
+            "heading_error_penalty": -heading_error_penalty * 0.08,
             "yaw_change_reward": yaw_change_reward,
             "alt_penalty": alt_penalty,
           #  "avoid_success_reward": avoid_success_reward * 0.3,
