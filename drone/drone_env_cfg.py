@@ -192,4 +192,3 @@ class QuadcopterEnvCfg(DirectRLEnvCfg):
     max_vert_vel = 0.8
     max_fwd_vel = 1.5
     max_vert_vel = 0.8
-    max_yaw_rate = 1.5
