@@ -187,7 +187,7 @@ class QuadcopterEnvCfg(DirectRLEnvCfg):
     max_thrust = 0.6   # N, ~2x hover thrust for a 28g drone
     max_torque = 0.01
     max_altitude = 6.0   
-    target_altitude = 1.0
+    target_altitude = 1.5
     alt_penalty_scale = -0.05
     max_vert_vel = 0.8
     max_fwd_vel = 1.5
