@@ -76,7 +76,7 @@ class QuadcopterEnvCfg(DirectRLEnvCfg):
                 axis="Z",
                 visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.0, 0.0, 1.0)),
                 collision_props=sim_utils.CollisionPropertiesCfg(collision_enabled=True),
-                mass_props=sim_utils.MassPropertiesCfg(mass=70.0),
+                mass_props=sim_utils.MassPropertiesCfg(mass=100.0),
                 ),
             ],
             random_choice=False,
@@ -188,7 +188,7 @@ class QuadcopterEnvCfg(DirectRLEnvCfg):
     max_torque = 0.01
     max_altitude = 6.0   
     target_altitude = 1.5
-    alt_penalty_scale = -0.05
+    alt_penalty_scale = -0.07
     max_vert_vel = 0.8
     max_fwd_vel = 1.5
     max_vert_vel = 0.8
