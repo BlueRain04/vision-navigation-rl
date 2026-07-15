@@ -532,10 +532,10 @@ class QuadcopterEnv(DirectRLEnv):
 
         positions_env: dict[int, list[tuple[torch.Tensor, torch.Tensor]]] = {}
         env_ids_list = env_ids.tolist()
+        for key in self._episode_sums.keys():
+            self._episode_sums[key][env_ids] = 0.0
 
         for env in env_ids_list:
-            for key in self._episode_sums.keys():
-                self._episode_sums[key][env_ids] = 0.0
             origin = self.scene.env_origins[env]
             goal = self.target_pos[env]
             positions: list[tuple[torch.Tensor, torch.Tensor, torch.Tensor]] = []
