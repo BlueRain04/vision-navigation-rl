@@ -187,9 +187,18 @@ class QuadcopterEnv(DirectRLEnv):
     def _pre_physics_step(self, actions: torch.Tensor) -> None: #we might need to tune the hyperparameter in the cfg
         self.step_counter += 1
         self.actions = actions.clone().clamp(-1.0, 1.0) #clone the action for independent memory then clip it
-        fwd_speed_cmd = self.actions[:, 0] * self.cfg.max_fwd_vel #this is the X-axis velocity
-        vz_cmd = self.actions[:, 1] * self.cfg.max_vert_vel #this should be removed RL should output only the X-axis velocity and the yaw velocity
-        yaw_rate_cmd = self.actions[:, 2] * self.cfg.max_yaw_rate #correct
+        fwd_speed_cmd = self.actions[:, 0] * self.cfg.max_fwd_vel #this is the X-axis velocity and weight it
+        yaw_rate_cmd = self.actions[:, 1] * self.cfg.max_yaw_rate #get the yaw and weight it
+        #PID
+        current_z = self._robot.data.root_pos_w[:, 2] - self.scene.env_origins[:, 2] #how much the drone moved in z when we first started the env
+        alt_error = self.cfg.target_altitude - current_z #altitude needed to reach the goal "P"
+        self._alt_error_integral += alt_error * self.step_dt #sum the cumulative error over time
+        current_vz = self._robot.data.root_lin_vel_w[:, 2] #get the drone's z-axis compared to world
+        accel_z_cmd = (self.cfg.kp_alt * alt_error
+                   + self.cfg.ki_alt * self._alt_error_integral
+                   - self.cfg.kd_alt * current_vz) #add the error over time to the P error 
+       # vz_cmd = self.actions[:, 1] * self.cfg.max_vert_vel #this should be removed RL should output only the X-axis velocity and the yaw velocity
+       # yaw_rate_cmd = self.actions[:, 2] * self.cfg.max_yaw_rate #correct
         forward_w = math_utils.quat_apply(self._robot.data.root_quat_w, self._forward_vec_b)
         forward_w[:, 2] = 0.0
         forward_w = forward_w / (torch.norm(forward_w, dim=-1, keepdim=True) + 1e-6)
