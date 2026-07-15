@@ -550,7 +550,7 @@ class QuadcopterEnv(DirectRLEnv):
                     )
                     x = origin[0] + radius * torch.cos(theta)
                     y = origin[1] + radius * torch.sin(theta)
-                    sample_z = torch.empty((), device=self.device).uniform_(2.0, 3.0)
+                    sample_z = torch.empty((), device=self.device).uniform_(0.5, 1.5)
                     z = origin[2] + sample_z
 
                     #obstacle-origin spacing
