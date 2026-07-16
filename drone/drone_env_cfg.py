@@ -17,7 +17,7 @@ class QuadcopterEnvCfg(DirectRLEnvCfg):
     #environment
     decimation = 4
     episode_length_s = 20.0
-    action_space = 3
+    action_space = 2
     history_len = 3 #number of frames to stack
     observation_space = gym.spaces.Dict({
         "rgb": gym.spaces.Box(low=0, high=255, shape=(history_len, 64, 64, 3), dtype=float),#check the high value could be 1!
@@ -192,3 +192,9 @@ class QuadcopterEnvCfg(DirectRLEnvCfg):
     max_vert_vel = 0.8
     max_fwd_vel = 1.5
     max_vert_vel = 0.8
+    kp_alt = 3.0
+    ki_alt = 0.5
+    kd_alt = 1.0
+    kp_vel_pitch = 0.15
+    ki_vel_pitch = 0.02
+    kd_vel_pitch = 0.05
