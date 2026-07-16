@@ -15,31 +15,31 @@ from isaaclab.envs import ViewerCfg
 @configclass
 class QuadcopterEnvCfg(DirectRLEnvCfg):
     #environment
-    decimation = 4
-    episode_length_s = 20.0
-    action_space = 2
+    decimation = 4 #get one frame out of 4 frames
+    episode_length_s = 20.0 #length of eps
+    action_space = 2 #number of actions
     history_len = 3 #number of frames to stack
     observation_space = gym.spaces.Dict({
-        "rgb": gym.spaces.Box(low=0, high=255, shape=(history_len, 64, 64, 3), dtype=float),#check the high value could be 1!
-        "depth": gym.spaces.Box(low=0, high=1, shape=(history_len, 64, 64, 1), dtype=float), 
-        "state": gym.spaces.Box(low=-float("inf"), high=float("inf"), shape=(8,), dtype=float),
+        "rgb": gym.spaces.Box(low=0, high=255, shape=(history_len, 64, 64, 3), dtype=float),#obs: RGB image
+        "depth": gym.spaces.Box(low=0, high=1, shape=(history_len, 64, 64, 1), dtype=float),  #obs: depth image
+        "state": gym.spaces.Box(low=-float("inf"), high=float("inf"), shape=(8,), dtype=float), #obs: state
     })
-    state_space = gym.spaces.Box(low=-float("inf"), high=float("inf"), shape=(0,)) 
-    filter_to_obstacle = [ #create 5 obstacles for each env
+    state_space = gym.spaces.Box(low=-float("inf"), high=float("inf"), shape=(0,)) #create the state space vector
+    filter_to_obstacle = [ #create 10 obstacles for each env
     f"/World/envs/env_.*/Obstacle{i}"
     for i in range(1, 11)
     ]
     
     viewer: ViewerCfg = ViewerCfg(
-        eye=(4.0, -4.0, 3.5),      # camera position, offset diagonally and elevated
-        lookat=(0.0, 0.0, 1.5),   # looking at roughly drone-height, not ground level
-        env_index=0,               # which parallel environment to view (env_0)
+        eye=(4.0, -4.0, 3.5), #camera position, offset diagonally and elevated
+        lookat=(0.0, 0.0, 1.5), #looking at roughly drone-height, not ground level
+        env_index=0, #which parallel environment to view (env_0)
     )
 
     #simulation
     sim: SimulationCfg = SimulationCfg(
         dt=1 / 100, #every 0.01 second compute the physics
-        render_interval=decimation, #draw a frame every two t
+        render_interval=decimation, #draw a frame every four t
     )
 
     terrain: AssetBaseCfg = AssetBaseCfg( #creating a simple terrain
@@ -49,14 +49,14 @@ class QuadcopterEnvCfg(DirectRLEnvCfg):
 
     #scene
     scene: InteractiveSceneCfg = InteractiveSceneCfg( #we run multiple envs for each drone
-        num_envs=64, #start with 16 then change it later to 3600
+        num_envs=64, #number of parallel envs
         env_spacing=20, #space between the envs "we don't want overlapping!"
-        replicate_physics=True, #one template for all envs for efficiency"
+        replicate_physics=True, #one template for all envs for efficiency
     )
 
     #lighting
     sky_light = AssetBaseCfg( 
-        prim_path="/World/skyLight",
+        prim_path="/World/skyLight", #light path
         spawn=sim_utils.DomeLightCfg( #apply dome light
             intensity=1000.0,
             color=(0.75, 0.75, 0.75),
@@ -76,12 +76,11 @@ class QuadcopterEnvCfg(DirectRLEnvCfg):
                 axis="Z",
                 visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.0, 0.0, 1.0)),
                 collision_props=sim_utils.CollisionPropertiesCfg(collision_enabled=True),
-                mass_props=sim_utils.MassPropertiesCfg(mass=100.0),
+                mass_props=sim_utils.MassPropertiesCfg(mass=100.0), #heavy enough not to slide easily
                 ),
             ],
             random_choice=False,
-            rigid_props=sim_utils.RigidBodyPropertiesCfg(solver_position_iteration_count=4),
-            #heavy enough not to slide easily
+            rigid_props=sim_utils.RigidBodyPropertiesCfg(solver_position_iteration_count=4), #make the last result of the time step more accurate and close to what actually happened
         ),
         init_state=RigidObjectCfg.InitialStateCfg(pos=(2.0, 2.0, 1.0)), #the initial position of the obstacles
     )
@@ -122,26 +121,26 @@ class QuadcopterEnvCfg(DirectRLEnvCfg):
         spawn=CRAZYFLIE_CFG.spawn.replace(
             activate_contact_sensors=True, #we are enabling the sensors for collision
             rigid_props=sim_utils.RigidBodyPropertiesCfg(
-                rigid_body_enabled=True,
-                kinematic_enabled=False,
-                disable_gravity=False,
-                max_linear_velocity=5.0,
-                max_angular_velocity=10.0,
-                max_depenetration_velocity=5.0,
-                enable_gyroscopic_forces=True,
+                rigid_body_enabled=True, #treat this object as a rigid body
+                kinematic_enabled=False, #not a kinematic but a dynamic object "kinematic doesn't allow computing forces..."
+                disable_gravity=False, #important for use case
+                max_linear_velocity=5.0, #linear velocity is capped at 5.0 m/s
+                max_angular_velocity=10.0, #sets the roll, pitch, yaw max at 10.0 m/s 
+                max_depenetration_velocity=5.0, #limits how quickly the physics engine is allowed to separate two overlapping rigid bodies
+                enable_gyroscopic_forces=True, #disables simulation of the extra effect created by spinning rotors
             ),
             collision_props=sim_utils.CollisionPropertiesCfg(),
             articulation_props=sim_utils.ArticulationRootPropertiesCfg(
             enabled_self_collisions=False,
-            solver_position_iteration_count=4,
-            solver_velocity_iteration_count=1,
+            solver_position_iteration_count=4, #make the last result of the time step more accurate and close to what actually happened
+            solver_velocity_iteration_count=1, #make the last result of the time step more accurate and close to what actually happened
             ),
         ),
         init_state=ArticulationCfg.InitialStateCfg(pos=(0.0, 0.0, 0.0)),
     )
 
     thrust_to_weight = 1.61 #should be > 1 so that the drone can make thrust
-    moment_scale = [0.05, 0.05, 0.02] #it's the [roll, pitch, yaw] 1.25, 1.92, 0.154
+    moment_scale = [0.05, 0.05, 0.02] #it's the [roll, pitch, yaw]
 
     #sensors
     tiled_camera: TiledCameraCfg = TiledCameraCfg( #attaching one camera to each robot
@@ -160,38 +159,34 @@ class QuadcopterEnvCfg(DirectRLEnvCfg):
     contact_sensor_body: ContactSensorCfg = ContactSensorCfg(
         prim_path="/World/envs/env_.*/Robot/body",
         history_length=1,
-        track_air_time=False,
-        update_period=0.0,
+        track_air_time=False, #don't keep track of how long the object has been in the air
+        update_period=0.0, #update the sensor every simulation step
         debug_vis=False,
         filter_prim_paths_expr=filter_to_obstacle,
     )
 
     #rewards / logic
-    target_reach_threshold = 0.8
+    target_reach_threshold = 0.8 #range from target to reach it
     lin_vel_reward_scale = -0.05
     ang_vel_reward_scale = -0.01
 
-    max_lin_vel = 2.0        # m/s, max commandable velocity per axis
-    max_yaw_rate = 0.8       # rad/s, max commandable yaw rate
+    max_lin_vel = 2.0 #max commandable velocity per axisin m/s
+    max_yaw_rate = 0.8 #max commandable yaw rate in rad/s
     
-    # velocity -> acceleration (P gain only, keep simple)
-    kp_vel = 10.0
-    # acceleration -> tilt angle limit
-    max_tilt_angle = 0.6    # radians (~20 deg), safety cap
+    kp_vel = 10.0 #velocity -> acceleration (P gain only, keep simple)
+    max_tilt_angle = 0.6 #radians (~60 deg) safety cap
     
-    # attitude -> torque (P and D on angle error / angular velocity)
-    kp_att = 0.008
+    kp_att = 0.008 #attitude -> torque (P and D on angle error / angular velocity)
     kd_att = 0.0015
     kp_yaw = 0.001
     kd_yaw = 0.001
-    max_thrust = 0.6   # N, ~2x hover thrust for a 28g drone
+    max_thrust = 0.6
     max_torque = 0.01
     max_altitude = 6.0   
     target_altitude = 1.5
     alt_penalty_scale = -0.07
     max_vert_vel = 0.8
     max_fwd_vel = 1.5
-    max_vert_vel = 0.8
     kp_alt = 3.0
     ki_alt = 0.5
     kd_alt = 1.0
