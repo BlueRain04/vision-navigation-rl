@@ -117,6 +117,9 @@ class QuadcopterEnv(DirectRLEnv):
         self._global_episodes = 0
         self._global_successes = 0
         self._global_collisions = 0
+        self._alt_error_integral = torch.zeros(self.num_envs, device=self.device)
+        self._fwd_error_integral = torch.zeros(self.num_envs, device=self.device)
+        self._prev_fwd_error = torch.zeros(self.num_envs, device=self.device)
         self._log_path = "/workspace/vision-navigation-rl/training_stats.csv"
         if not os.path.exists(self._log_path):
             with open(self._log_path, "w") as f:
@@ -196,34 +199,39 @@ class QuadcopterEnv(DirectRLEnv):
         current_vz = self._robot.data.root_lin_vel_w[:, 2] #get the drone's z-axis compared to world
         accel_z_cmd = (self.cfg.kp_alt * alt_error
                    + self.cfg.ki_alt * self._alt_error_integral
-                   - self.cfg.kd_alt * current_vz) #add the error over time to the P error 
-       # vz_cmd = self.actions[:, 1] * self.cfg.max_vert_vel #this should be removed RL should output only the X-axis velocity and the yaw velocity
-       # yaw_rate_cmd = self.actions[:, 2] * self.cfg.max_yaw_rate #correct
+                   - self.cfg.kd_alt * current_vz) #add the error over time to the P error
+        accel_z_cmd += self._gravity_magnitude
+    
+        # --- Velocity control layer: PID on forward-speed error -> desired pitch ---
         forward_w = math_utils.quat_apply(self._robot.data.root_quat_w, self._forward_vec_b)
         forward_w[:, 2] = 0.0
         forward_w = forward_w / (torch.norm(forward_w, dim=-1, keepdim=True) + 1e-6)
-        vel_cmd = torch.stack([
-            forward_w[:, 0] * fwd_speed_cmd,
-            forward_w[:, 1] * fwd_speed_cmd,
-            vz_cmd,
-        ], dim=-1)
-        current_vel = self._robot.data.root_lin_vel_w
-        vel_error = vel_cmd - current_vel
-        accel_cmd = self.cfg.kp_vel * vel_error
-        accel_cmd[:, 2] += self._gravity_magnitude
-        desired_pitch = torch.clamp(accel_cmd[:, 0] / (self._gravity_magnitude + 1e-6),
-                                 -self.cfg.max_tilt_angle, self.cfg.max_tilt_angle)
-        desired_roll = torch.clamp(-accel_cmd[:, 1] / (self._gravity_magnitude + 1e-6),
-                                -self.cfg.max_tilt_angle, self.cfg.max_tilt_angle)
+        current_fwd_speed = torch.sum(self._robot.data.root_lin_vel_w * forward_w, dim=-1)
+    
+        fwd_error = fwd_speed_cmd - current_fwd_speed
+        self._fwd_error_integral += fwd_error * self.step_dt
+        self._fwd_error_integral = torch.clamp(self._fwd_error_integral, -2.0, 2.0)
+        fwd_error_rate = (fwd_error - self._prev_fwd_error) / self.step_dt
+        self._prev_fwd_error = fwd_error.clone()
+    
+        desired_pitch = (self.cfg.kp_vel_pitch * fwd_error
+                          + self.cfg.ki_vel_pitch * self._fwd_error_integral
+                          + self.cfg.kd_vel_pitch * fwd_error_rate)
+        desired_pitch = torch.clamp(desired_pitch, -self.cfg.max_tilt_angle, self.cfg.max_tilt_angle)
+        desired_roll = torch.zeros_like(desired_pitch)
+    
+        # --- Thrust from altitude accel + tilt compensation ---
         cos_tilt = torch.cos(desired_roll) * torch.cos(desired_pitch)
         cos_tilt = torch.clamp(cos_tilt, min=0.2)
-        thrust_needed_z = self._robot_mass * accel_cmd[:, 2]
-        thrust_mag = thrust_needed_z / cos_tilt
+        thrust_mag = (self._robot_mass * accel_z_cmd) / cos_tilt
         thrust_mag = torch.clamp(thrust_mag, 0.0, self.cfg.max_thrust)
+    
+        # --- Attitude controller (P, per paper; keeping your existing D term too) ---
         _, _, current_yaw = math_utils.euler_xyz_from_quat(self._robot.data.root_quat_w)
         desired_yaw = current_yaw + yaw_rate_cmd * self.step_dt
         desired_quat = math_utils.quat_from_euler_xyz(desired_roll, desired_pitch, desired_yaw)
         current_quat = self._robot.data.root_quat_w
+    
         quat_err = math_utils.quat_mul(desired_quat, math_utils.quat_conjugate(current_quat))
         att_err_vec = 2.0 * quat_err[:, 1:4] * torch.sign(quat_err[:, 0]).unsqueeze(-1)
         current_ang_vel = self._robot.data.root_ang_vel_b
@@ -231,37 +239,76 @@ class QuadcopterEnv(DirectRLEnv):
         torque[:, :2] -= self.cfg.kd_att * current_ang_vel[:, :2]
         torque[:, 2] = self.cfg.kp_yaw * att_err_vec[:, 2] - self.cfg.kd_yaw * current_ang_vel[:, 2]
         torque = torch.clamp(torque, -self.cfg.max_torque, self.cfg.max_torque)
+    
         self._thrust[:, 0, 2] = thrust_mag
         self._moment[:, 0, :] = torque
+        self.goal_marker.visualize(self.target_pos)
+        self._visualize_arrows()
+       # vz_cmd = self.actions[:, 1] * self.cfg.max_vert_vel #this should be removed RL should output only the X-axis velocity and the yaw velocity
+       # yaw_rate_cmd = self.actions[:, 2] * self.cfg.max_yaw_rate #correct
+       # forward_w = math_utils.quat_apply(self._robot.data.root_quat_w, self._forward_vec_b)
+      #  forward_w[:, 2] = 0.0
+      #  forward_w = forward_w / (torch.norm(forward_w, dim=-1, keepdim=True) + 1e-6)
+      #  vel_cmd = torch.stack([
+        #    forward_w[:, 0] * fwd_speed_cmd,
+        #    forward_w[:, 1] * fwd_speed_cmd,
+         #   vz_cmd,
+       # ], dim=-1)
+       # current_vel = self._robot.data.root_lin_vel_w
+      #  vel_error = vel_cmd - current_vel
+      #  accel_cmd = self.cfg.kp_vel * vel_error
+       # accel_cmd[:, 2] += self._gravity_magnitude
+     #   desired_pitch = torch.clamp(accel_cmd[:, 0] / (self._gravity_magnitude + 1e-6),
+                   #              -self.cfg.max_tilt_angle, self.cfg.max_tilt_angle)
+       # desired_roll = torch.clamp(-accel_cmd[:, 1] / (self._gravity_magnitude + 1e-6),
+                               # -self.cfg.max_tilt_angle, self.cfg.max_tilt_angle)
+       # cos_tilt = torch.cos(desired_roll) * torch.cos(desired_pitch)
+       # cos_tilt = torch.clamp(cos_tilt, min=0.2)
+      #  thrust_needed_z = self._robot_mass * accel_cmd[:, 2]
+     #   thrust_mag = thrust_needed_z / cos_tilt
+      #  thrust_mag = torch.clamp(thrust_mag, 0.0, self.cfg.max_thrust)
+      #  _, _, current_yaw = math_utils.euler_xyz_from_quat(self._robot.data.root_quat_w)
+     #   desired_yaw = current_yaw + yaw_rate_cmd * self.step_dt
+    #    desired_quat = math_utils.quat_from_euler_xyz(desired_roll, desired_pitch, desired_yaw)
+      #  current_quat = self._robot.data.root_quat_w
+      #  quat_err = math_utils.quat_mul(desired_quat, math_utils.quat_conjugate(current_quat))
+       # att_err_vec = 2.0 * quat_err[:, 1:4] * torch.sign(quat_err[:, 0]).unsqueeze(-1)
+      #  current_ang_vel = self._robot.data.root_ang_vel_b
+     #   torque = self.cfg.kp_att * att_err_vec.clone()
+      #  torque[:, :2] -= self.cfg.kd_att * current_ang_vel[:, :2]
+      #  torque[:, 2] = self.cfg.kp_yaw * att_err_vec[:, 2] - self.cfg.kd_yaw * current_ang_vel[:, 2]
+       # torque = torch.clamp(torque, -self.cfg.max_torque, self.cfg.max_torque)
+     #   self._thrust[:, 0, 2] = thrust_mag
+      #  self._moment[:, 0, :] = torque
       #  self._actions = 0.8 * self._actions + 0.2 * actions.clone().clamp(-1.0, 1.0)
        # self._thrust[:, 0, 2] = self.cfg.thrust_to_weight * self._robot_weight * (self.actions[:, 0] + 1.0) / 2.0 #get the thrust action range [-1, 1] and map it to [0, 1] to apply in simulator, assign it as Z force since X Y are not applicable
        # self._moment[:, 0, :] = self._moment_scale * self.actions[:, 1:] #take the roll, pitch, and yas from action scale them then add to moment tensor
-        self.goal_marker.visualize(self.target_pos)
-        if self.common_step_counter % 500 == 0:
-            print(f"Action mean : {self.actions.mean():.3f}")
-            print(f"Action std  : {self.actions.std():.3f}")
-            print(
-                f"Fwd cmd     : mean={fwd_speed_cmd.mean():.3f}, "
-                f"std={fwd_speed_cmd.std():.3f}, "
-                f"min={fwd_speed_cmd.min():.3f}, "
-                f"max={fwd_speed_cmd.max():.3f}"
-            )
-            print(f"Vz cmd      : {vz_cmd.mean():.3f}")
-            print(f"Yaw rate cmd:  {yaw_rate_cmd.mean():.3f}")
-            print(f"forward_w: {forward_w.mean(dim=0)}")
+     #   self.goal_marker.visualize(self.target_pos)
+     #   if self.common_step_counter % 500 == 0:
+        #    print(f"Action mean : {self.actions.mean():.3f}")
+        #    print(f"Action std  : {self.actions.std():.3f}")
+         #   print(
+         #       f"Fwd cmd     : mean={fwd_speed_cmd.mean():.3f}, "
+         #       f"std={fwd_speed_cmd.std():.3f}, "
+          #      f"min={fwd_speed_cmd.min():.3f}, "
+          #      f"max={fwd_speed_cmd.max():.3f}"
+         #   )
+          #  print(f"Vz cmd      : {vz_cmd.mean():.3f}")
+        #    print(f"Yaw rate cmd:  {yaw_rate_cmd.mean():.3f}")
+         #   print(f"forward_w: {forward_w.mean(dim=0)}")
          #   print(f"Yaw rate cmd: {self.actions[:,3].mean():.3f}")
-            print(f"Thrust force: mean={self._thrust[:, 0, 2].mean():.3f}, "
-              f"min={self._thrust[:, 0, 2].min():.3f}, "
-              f"max={self._thrust[:, 0, 2].max():.3f}")
-            print(f"Torque      : mean={self._moment[:, 0, :].mean(dim=0)}")
-            actual_vel_w = self._robot.data.root_lin_vel_w
-            print(f"Actual vel (world) : mean={actual_vel_w.mean(dim=0)}")
-            actual_fwd_speed = torch.sum(actual_vel_w * forward_w, dim=-1)
-            print(f"Actual fwd speed  : mean={actual_fwd_speed.mean():.3f}  (compare directly to Fwd cmd)")
-            print(f"Actual vz         : mean={actual_vel_w[:, 2].mean():.3f}  (compare directly to Vz cmd)")
-            horiz_speed = torch.norm(self._robot.data.root_lin_vel_w[:, :2], dim=-1)
-            print(f"Horizontal speed (any direction): mean={horiz_speed.mean():.3f}")
-        self._visualize_arrows()
+          # print(f"Thrust force: mean={self._thrust[:, 0, 2].mean():.3f}, "
+          #    f"min={self._thrust[:, 0, 2].min():.3f}, "
+           #   f"max={self._thrust[:, 0, 2].max():.3f}")
+        #    print(f"Torque      : mean={self._moment[:, 0, :].mean(dim=0)}")
+          #  actual_vel_w = self._robot.data.root_lin_vel_w
+#print(f"Actual vel (world) : mean={actual_vel_w.mean(dim=0)}")
+           # actual_fwd_speed = torch.sum(actual_vel_w * forward_w, dim=-1)
+         #   print(f"Actual fwd speed  : mean={actual_fwd_speed.mean():.3f}  (compare directly to Fwd cmd)")
+           # print(f"Actual vz         : mean={actual_vel_w[:, 2].mean():.3f}  (compare directly to Vz cmd)")
+          #  horiz_speed = torch.norm(self._robot.data.root_lin_vel_w[:, :2], dim=-1)
+           # print(f"Horizontal speed (any direction): mean={horiz_speed.mean():.3f}")
+       # self._visualize_arrows()
 
     def _visualize_arrows(self):
         goal_vec = self._get_goal_vec()
@@ -480,6 +527,10 @@ class QuadcopterEnv(DirectRLEnv):
         Cumulative Collision Rate: {collision_rate:6.2%}  ({self._global_collisions}/{self._global_episodes})
         """
         )
+        
+        self._alt_error_integral[env_ids] = 0.0
+        self._fwd_error_integral[env_ids] = 0.0
+        self._prev_fwd_error[env_ids] = 0.0
         #reset robot
         root_state = self._robot.data.default_root_state[env_ids].clone() #get a copy from the robot template
         root_state[:, :3] += self.scene.env_origins[env_ids] #get the robot (X, Y, Z) position
