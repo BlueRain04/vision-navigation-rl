@@ -401,7 +401,7 @@ class QuadcopterEnv(DirectRLEnv):
         ang_vel = torch.clamp(ang_vel, max=10.0)
         #obstacle detection from depth
         min_depth = self._depth_hist[:, -1].amin(dim=(1, 2, 3))
-        obstacle_detected = min_depth < 0.6 #we might need to tune the 0.15
+        obstacle_detected = min_depth < 0.35 #we might need to tune the 0.15
         
         if self.common_step_counter % 500 == 0:
             print(f"min_depth mean={min_depth.mean():.3f}, median={min_depth.median():.3f}, min={min_depth.min():.3f}, max={min_depth.max():.3f}")
