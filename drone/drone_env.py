@@ -402,6 +402,9 @@ class QuadcopterEnv(DirectRLEnv):
         #obstacle detection from depth
         min_depth = self._depth_hist[:, -1].amin(dim=(1, 2, 3))
         obstacle_detected = min_depth < 0.15 #we might need to tune the 0.15
+        
+        if self.common_step_counter % 500 == 0:
+            print(f"obstacle_detected rate: {obstacle_detected.float().mean():.3f}")
 
         #current yaw
         _, _, yaw = math_utils.euler_xyz_from_quat(self._robot.data.root_quat_w)
