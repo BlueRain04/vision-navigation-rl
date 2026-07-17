@@ -193,3 +193,4 @@ class QuadcopterEnvCfg(DirectRLEnvCfg):
     kp_vel_pitch = 0.15
     ki_vel_pitch = 0.02
     kd_vel_pitch = 0.05
+    max_horizontal_dist = 8.0 #meters from env origin, generous given goals are 3.5-5m away
