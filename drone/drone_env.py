@@ -497,7 +497,12 @@ class QuadcopterEnv(DirectRLEnv):
         
         too_high = (self._robot.data.root_pos_w[:, 2] - self.scene.env_origins[:, 2]) > self.cfg.max_altitude
 
-        return (reached | crashed | too_high), time_out
+        horiz_dist_from_origin = torch.norm(
+        (self._robot.data.root_pos_w[:, :2] - self.scene.env_origins[:, :2]), dim=-1
+        )
+        too_far = horiz_dist_from_origin > self.cfg.max_horizontal_dist
+        
+        return (reached | crashed | too_high | too_far), time_out
     
     def _reset_idx(self, env_ids: torch.Tensor | None): #not all envs reset on the same time
         if env_ids is None: #if all envs are done
@@ -613,7 +618,7 @@ class QuadcopterEnv(DirectRLEnv):
                     )
                     x = origin[0] + radius * torch.cos(theta)
                     y = origin[1] + radius * torch.sin(theta)
-                    sample_z = torch.empty((), device=self.device).uniform_(1.2, 1.8)
+                    sample_z = torch.empty((), device=self.device).uniform_(2.0, 2.5)
                     z = origin[2] + sample_z
 
                     #obstacle-origin spacing
