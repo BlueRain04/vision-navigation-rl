@@ -35,8 +35,8 @@ env = SkrlVecEnvWrapper(env, ml_framework="torch")
 agent = get_agent(env, device="cuda:0")
 agent.init()
 
-checkpoint_path = "/workspace/vision-navigation-rl/runs/26-07-17_08-10-59-185986_PPO/checkpoints/best_agent.pt"
-agent.load(checkpoint_path)
+#checkpoint_path = "/workspace/vision-navigation-rl/runs/26-07-17_08-10-59-185986_PPO/checkpoints/best_agent.pt"
+#agent.load(checkpoint_path)
 
 trainer_cfg = {"timesteps": 10000, "headless": True}
 trainer = SequentialTrainer(cfg=trainer_cfg, env=env, agents=agent)
