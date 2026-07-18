@@ -134,7 +134,7 @@ class QuadcopterEnv(DirectRLEnv):
                 "success_reward",
                # "alignment_reward",
            #     "backward_penalty",
-            #    "ang_vel",
+                "ang_vel",
                 "heading_error_penalty",
                 "yaw_change_reward",
                 "alt_penalty",
@@ -467,7 +467,7 @@ class QuadcopterEnv(DirectRLEnv):
        # backward_penalty = backward_act * 0.5
 
         rewards = {
-           # "ang_vel": ang_vel * -0.005,
+            "ang_vel": ang_vel * -0.01,
             "collision_reward": collision_val * -12.0,
             "dist_delta": dist_delta * 1.0,
             "progress_reward": progress_reward,
@@ -532,6 +532,7 @@ class QuadcopterEnv(DirectRLEnv):
         Yaw      : {self._episode_sums['yaw_change_reward'][env_ids].mean():8.2f}
         success_reward: {self._episode_sums['success_reward'][env_ids].mean():8.2f}
         alt_penalty: {self._episode_sums['alt_penalty'][env_ids].mean():8.2f}
+        ang_vel: {self._episode_sums['ang_vel'][env_ids].mean():8.2f}
         Cumulative Success Rate  : {success_rate:6.2%}  ({self._global_successes}/{self._global_episodes})
         Cumulative Collision Rate: {collision_rate:6.2%}  ({self._global_collisions}/{self._global_episodes})
         """
@@ -619,7 +620,7 @@ class QuadcopterEnv(DirectRLEnv):
                     )
                     x = origin[0] + radius * torch.cos(theta)
                     y = origin[1] + radius * torch.sin(theta)
-                    sample_z = torch.empty((), device=self.device).uniform_(5.0, 7.0)
+                    sample_z = torch.empty((), device=self.device).uniform_(1.0, 2.0)
                     z = origin[2] + sample_z
 
                     #obstacle-origin spacing
