@@ -38,7 +38,7 @@ agent.init()
 #checkpoint_path = "/workspace/vision-navigation-rl/runs/26-07-17_08-10-59-185986_PPO/checkpoints/best_agent.pt"
 #agent.load(checkpoint_path)
 
-trainer_cfg = {"timesteps": 10000, "headless": True}
+trainer_cfg = {"timesteps": 200000, "headless": True}
 trainer = SequentialTrainer(cfg=trainer_cfg, env=env, agents=agent)
 trainer.train()
 
