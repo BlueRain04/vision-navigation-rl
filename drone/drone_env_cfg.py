@@ -72,7 +72,7 @@ class QuadcopterEnvCfg(DirectRLEnvCfg):
             [
                 sim_utils.CylinderCfg( 
                 radius=0.2,
-                height=1.0,
+                height=2.0,
                 axis="Z",
                 visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.0, 0.0, 1.0)),
                 collision_props=sim_utils.CollisionPropertiesCfg(collision_enabled=True),
