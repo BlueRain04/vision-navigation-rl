@@ -18,7 +18,7 @@ def contact_penalty(env,
     ) -> torch.Tensor:
     """
     Penalize collisions with obstacles using filtered contact sensors.
-    Uses force_matrix_w: (E, B, F, 3). Returns (E,) in [-1, 1].
+    Uses force_matrix_w: (E, B, F, 3). Returns (E,) in [-1, 1]. E = envs, B = body that is attached to the sensor, F = filter used which is against obstacles, 3 = forces for X Y Z
     """
     total_penalty = torch.zeros(env.num_envs, device=env.device) 
     sensor = env.scene.sensors.get(contact_sensor_name, None) #get the body sensor from the scene
@@ -26,7 +26,7 @@ def contact_penalty(env,
         return total_penalty
     fm = getattr(sensor.data, "force_matrix_w", None) #get the force matrix attribute
     if isinstance(fm, torch.Tensor) and fm.numel() > 0:
-        strength = torch.norm(fm, dim=-1).amax(dim=(1, 2)) #for every env find the force
+        strength = torch.norm(fm, dim=-1).amax(dim=(1, 2)) #for every env normlaize the force and get the highest force
         excess = torch.clamp(strength - threshold, min = 0.0) #if the force is higher than a threshold then add to excess
         total_penalty += excess
     return torch.tanh(total_penalty) #mapping to [-1, 1]
