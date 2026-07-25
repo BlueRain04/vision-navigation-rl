@@ -159,7 +159,7 @@ Training logs episode-level success rate and collision rate to `training_stats.c
 
 This run was trained to **52,237 episodes / ~181k of a planned 200k environment steps** on a rented cloud GPU, then deliberately stopped short of full convergence — continuing to train against a flat collision-rate curve has a real dollar cost per additional hour, and the more useful next step is a reward-shaping change (below), not just more compute against the current setup.
 
-![Training curves](assets/training_curves.png)
+![Training curves](assets/training_trend.png)
 
 Over this budget, the **success rate nearly doubled** from its early-training level to a recent-window, showing the policy is clearly learning the navigation task from vision alone. The **collision rate plateaued around 24%** and did not meaningfully improve with additional training — which is the actual signal that matters here: more steps on this configuration weren't the fix. The next iteration increases the relative weight of the collision penalty rather than the training budget (see below).
 
