@@ -93,13 +93,6 @@ class DroneSharedModel(GaussianMixin, DeterministicMixin, Model):
         rgb_stack = obs["rgb"]
         depth_stack = obs["depth"]
         state_vec = obs["state"]
-        #RGB: First 3 channels across all T, H, W
-        #rgb_stack = image_rgb[..., :self.rgb_ch]
-        
-        #state: last 3 channels
-        #since these were expanded, we only need one vector per environment
-        #Take T=0, H=0, W=0
-        #state_vec = obs[:, 0, 0, 0, -self.state_ch:]  #shape (N, 4)
 
         #3 process images
         cnn_feats = [] 
