@@ -85,7 +85,7 @@ def define_goal_marker():
 class QuadcopterEnv(DirectRLEnv):
     cfg: QuadcopterEnvCfg
 
-    def __init__(self, cfg: QuadcopterEnvCfg, render_mode: str | None = None, **kwargs): #need to add the contact sensor
+    def __init__(self, cfg: QuadcopterEnvCfg, render_mode: str | None = None, **kwargs):
         super().__init__(cfg, render_mode, **kwargs)
         self._rgb_hist: torch.Tensor | None = None #start the sps with None camera hist, later could be a tensor
         self._depth_hist: torch.Tensor | None = None #start the sps with None camera hist, later could be a tensor
@@ -104,7 +104,7 @@ class QuadcopterEnv(DirectRLEnv):
         self._thrust = torch.zeros(self.num_envs, 1, 3, device=self.device) #create the thrust tensor
         self._moment = torch.zeros(self.num_envs, 1, 3, device=self.device) #create the moment tensor
         self._moment_scale = torch.as_tensor(self.cfg.moment_scale, dtype=torch.float32, device=self.device) #get the moment scale from cfg and make it a tensor
-        self.up_dir = torch.tensor([0.0, 0.0, 1.0], device=self.device) #check
+        self.up_dir = torch.tensor([0.0, 0.0, 1.0], device=self.device)
         self._forward_vec_b = torch.tensor([1.0, 0.0, 0.0], device=self.device).repeat(self.num_envs, 1)
         self._prev_yaw = torch.zeros(self.num_envs, device=self.device)
         self._was_near_obstacle = torch.zeros(self.num_envs, dtype=torch.bool, device=self.device)
@@ -124,7 +124,6 @@ class QuadcopterEnv(DirectRLEnv):
         if not os.path.exists(self._log_path):
             with open(self._log_path, "w") as f:
                 f.write("step,episodes,successes,collisions,success_rate,collision_rate\n")
-        #self._forward_vec_b already exists
         self._episode_sums = {
             key: torch.zeros(self.num_envs, dtype=torch.float, device=self.device)
             for key in [
@@ -132,17 +131,14 @@ class QuadcopterEnv(DirectRLEnv):
                 "dist_delta",
                 "progress_reward",
                 "success_reward",
-               # "alignment_reward",
-           #     "backward_penalty",
                 "ang_vel",
                 "heading_error_penalty",
                 "yaw_change_reward",
                 "alt_penalty",
-              #  "avoid_success_reward"
             ]
         }
 
-    def _setup_scene(self): #need to add the contact sensor
+    def _setup_scene(self):
         self._robot = Articulation(self.cfg.robot) #get the robot from the cfg
         self.scene.articulations["robot"] = self._robot #add the robot to the scene
         self.cfg.terrain.spawn.func(self.cfg.terrain.prim_path, self.cfg.terrain.spawn) #create the terrain in the env
@@ -187,7 +183,7 @@ class QuadcopterEnv(DirectRLEnv):
     def _get_goal_vec(self):
         return self.target_pos - self._robot.data.root_pos_w
     
-    def _pre_physics_step(self, actions: torch.Tensor) -> None: #we might need to tune the hyperparameter in the cfg
+    def _pre_physics_step(self, actions: torch.Tensor) -> None:
         self.step_counter += 1
         self.actions = actions.clone().clamp(-1.0, 1.0) #clone the action for independent memory then clip it
         fwd_speed_cmd = self.actions[:, 0] * self.cfg.max_fwd_vel #this is the X-axis velocity and weight it
@@ -244,71 +240,6 @@ class QuadcopterEnv(DirectRLEnv):
         self._moment[:, 0, :] = torque
         self.goal_marker.visualize(self.target_pos)
         self._visualize_arrows()
-       # vz_cmd = self.actions[:, 1] * self.cfg.max_vert_vel #this should be removed RL should output only the X-axis velocity and the yaw velocity
-       # yaw_rate_cmd = self.actions[:, 2] * self.cfg.max_yaw_rate #correct
-       # forward_w = math_utils.quat_apply(self._robot.data.root_quat_w, self._forward_vec_b)
-      #  forward_w[:, 2] = 0.0
-      #  forward_w = forward_w / (torch.norm(forward_w, dim=-1, keepdim=True) + 1e-6)
-      #  vel_cmd = torch.stack([
-        #    forward_w[:, 0] * fwd_speed_cmd,
-        #    forward_w[:, 1] * fwd_speed_cmd,
-         #   vz_cmd,
-       # ], dim=-1)
-       # current_vel = self._robot.data.root_lin_vel_w
-      #  vel_error = vel_cmd - current_vel
-      #  accel_cmd = self.cfg.kp_vel * vel_error
-       # accel_cmd[:, 2] += self._gravity_magnitude
-     #   desired_pitch = torch.clamp(accel_cmd[:, 0] / (self._gravity_magnitude + 1e-6),
-                   #              -self.cfg.max_tilt_angle, self.cfg.max_tilt_angle)
-       # desired_roll = torch.clamp(-accel_cmd[:, 1] / (self._gravity_magnitude + 1e-6),
-                               # -self.cfg.max_tilt_angle, self.cfg.max_tilt_angle)
-       # cos_tilt = torch.cos(desired_roll) * torch.cos(desired_pitch)
-       # cos_tilt = torch.clamp(cos_tilt, min=0.2)
-      #  thrust_needed_z = self._robot_mass * accel_cmd[:, 2]
-     #   thrust_mag = thrust_needed_z / cos_tilt
-      #  thrust_mag = torch.clamp(thrust_mag, 0.0, self.cfg.max_thrust)
-      #  _, _, current_yaw = math_utils.euler_xyz_from_quat(self._robot.data.root_quat_w)
-     #   desired_yaw = current_yaw + yaw_rate_cmd * self.step_dt
-    #    desired_quat = math_utils.quat_from_euler_xyz(desired_roll, desired_pitch, desired_yaw)
-      #  current_quat = self._robot.data.root_quat_w
-      #  quat_err = math_utils.quat_mul(desired_quat, math_utils.quat_conjugate(current_quat))
-       # att_err_vec = 2.0 * quat_err[:, 1:4] * torch.sign(quat_err[:, 0]).unsqueeze(-1)
-      #  current_ang_vel = self._robot.data.root_ang_vel_b
-     #   torque = self.cfg.kp_att * att_err_vec.clone()
-      #  torque[:, :2] -= self.cfg.kd_att * current_ang_vel[:, :2]
-      #  torque[:, 2] = self.cfg.kp_yaw * att_err_vec[:, 2] - self.cfg.kd_yaw * current_ang_vel[:, 2]
-       # torque = torch.clamp(torque, -self.cfg.max_torque, self.cfg.max_torque)
-     #   self._thrust[:, 0, 2] = thrust_mag
-      #  self._moment[:, 0, :] = torque
-      #  self._actions = 0.8 * self._actions + 0.2 * actions.clone().clamp(-1.0, 1.0)
-       # self._thrust[:, 0, 2] = self.cfg.thrust_to_weight * self._robot_weight * (self.actions[:, 0] + 1.0) / 2.0 #get the thrust action range [-1, 1] and map it to [0, 1] to apply in simulator, assign it as Z force since X Y are not applicable
-       # self._moment[:, 0, :] = self._moment_scale * self.actions[:, 1:] #take the roll, pitch, and yas from action scale them then add to moment tensor
-     #   self.goal_marker.visualize(self.target_pos)
-     #   if self.common_step_counter % 500 == 0:
-        #    print(f"Action mean : {self.actions.mean():.3f}")
-        #    print(f"Action std  : {self.actions.std():.3f}")
-         #   print(
-         #       f"Fwd cmd     : mean={fwd_speed_cmd.mean():.3f}, "
-         #       f"std={fwd_speed_cmd.std():.3f}, "
-          #      f"min={fwd_speed_cmd.min():.3f}, "
-          #      f"max={fwd_speed_cmd.max():.3f}"
-         #   )
-          #  print(f"Vz cmd      : {vz_cmd.mean():.3f}")
-        #    print(f"Yaw rate cmd:  {yaw_rate_cmd.mean():.3f}")
-         #   print(f"forward_w: {forward_w.mean(dim=0)}")
-         #   print(f"Yaw rate cmd: {self.actions[:,3].mean():.3f}")
-          # print(f"Thrust force: mean={self._thrust[:, 0, 2].mean():.3f}, "
-          #    f"min={self._thrust[:, 0, 2].min():.3f}, "
-           #   f"max={self._thrust[:, 0, 2].max():.3f}")
-        #    print(f"Torque      : mean={self._moment[:, 0, :].mean(dim=0)}")
-          #  actual_vel_w = self._robot.data.root_lin_vel_w
-#print(f"Actual vel (world) : mean={actual_vel_w.mean(dim=0)}")
-           # actual_fwd_speed = torch.sum(actual_vel_w * forward_w, dim=-1)
-         #   print(f"Actual fwd speed  : mean={actual_fwd_speed.mean():.3f}  (compare directly to Fwd cmd)")
-           # print(f"Actual vz         : mean={actual_vel_w[:, 2].mean():.3f}  (compare directly to Vz cmd)")
-          #  horiz_speed = torch.norm(self._robot.data.root_lin_vel_w[:, :2], dim=-1)
-           # print(f"Horizontal speed (any direction): mean={horiz_speed.mean():.3f}")
-       # self._visualize_arrows()
 
     def _visualize_arrows(self):
         goal_vec = self._get_goal_vec()
@@ -350,7 +281,7 @@ class QuadcopterEnv(DirectRLEnv):
         camera_data_depth = self.robot_camera.data.output["distance_to_image_plane"].float()
         camera_data_depth = torch.clamp(camera_data_depth, 0.0, 20.0)
         camera_data_depth = camera_data_depth / 20.0
-        #we need to change this and add the depth
+
         if self._rgb_hist is None: #if this is the first frame
             self._rgb_hist = (
                 camera_data_rgb.unsqueeze(1)
@@ -435,7 +366,7 @@ class QuadcopterEnv(DirectRLEnv):
         heading_error_penalty = torch.where(
             obstacle_detected,
             torch.zeros_like(heading_alignment),
-            (1.0 - heading_alignment),  # penalize misalignment only when clear
+            (1.0 - heading_alignment),  #penalize misalignment only when clear
         )
 
         #6 yaw-change reward, only when obstacle detected (rule 2)
@@ -451,33 +382,15 @@ class QuadcopterEnv(DirectRLEnv):
         alt_error = torch.abs(self._robot.data.root_pos_w[:, 2] - self.scene.env_origins[:, 2] - self.cfg.target_altitude)
         alt_penalty = alt_error * self.cfg.alt_penalty_scale
 
-        #7 avoid-success bonus (Rule 3)
-        # fires when drone WAS near an obstacle last step, and is no longer, and didn't crash
-      #  just_cleared = self._was_near_obstacle & (~obstacle_detected) & (~collision_val.bool())
-      # avoid_success_reward = just_cleared.float() * 20.0
-      #  self._was_near_obstacle = obstacle_detected.clone()
-        #6 alignment reward
-      #  forwards = math_utils.quat_apply(self._robot.data.root_quat_w, self._forward_vec_b)
-      #  goal_dir = goal_vec / (torch.norm(goal_vec, dim=-1, keepdim=True) + 1e-6)
-       # alignment = torch.sum(forwards * goal_dir, dim=-1)
-      #  alignment_reward = alignment * 0.5
-
-        #7 Backward penalty
-       # backward_act = torch.sum(torch.clamp(self.actions, max=0.0), dim=1)
-       # backward_penalty = backward_act * 0.5
-
         rewards = {
             "ang_vel": ang_vel * -0.01,
             "collision_reward": collision_val * -12.0,
             "dist_delta": dist_delta * 1.0,
             "progress_reward": progress_reward,
             "success_reward": success_reward,
-            #"alignment_reward": alignment_reward,
             "heading_error_penalty": -heading_error_penalty * 0.01,
             "yaw_change_reward": yaw_change_reward,
             "alt_penalty": alt_penalty,
-          #  "avoid_success_reward": avoid_success_reward * 0.3,
-         #   "backward_penalty": backward_penalty,
         }
         reward = torch.sum(torch.stack(list(rewards.values())), dim=0)
         for key, value in rewards.items():
@@ -508,7 +421,7 @@ class QuadcopterEnv(DirectRLEnv):
     def _reset_idx(self, env_ids: torch.Tensor | None): #not all envs reset on the same time
         if env_ids is None: #if all envs are done
             env_ids = self._robot._ALL_INDICES #selecting all envs to reset
-        num_resets = len(env_ids) #check
+        num_resets = len(env_ids)
 
         n = len(env_ids)
         self._global_episodes += n
@@ -545,7 +458,6 @@ class QuadcopterEnv(DirectRLEnv):
         root_state = self._robot.data.default_root_state[env_ids].clone() #get a copy from the robot template
         root_state[:, :3] += self.scene.env_origins[env_ids] #get the robot (X, Y, Z) position
 
-        #random yaw "check"
         rand_yaw = torch.zeros((num_resets, 3), device=self.device)
         rand_yaw[:, 2] = torch.rand(num_resets, device=self.device) * 2.0 * math.pi
 
@@ -560,7 +472,7 @@ class QuadcopterEnv(DirectRLEnv):
         root_state[:, 3:7] = quat
         root_state[:, 7:] = 0.0
 
-        self._robot.write_root_state_to_sim(root_state, env_ids) #check
+        self._robot.write_root_state_to_sim(root_state, env_ids)
 
         if self._rgb_hist is not None: #reset camera
             self._rgb_hist[env_ids] = 0.0
@@ -583,11 +495,6 @@ class QuadcopterEnv(DirectRLEnv):
             + goal_radii * torch.sin(goal_thetas)
         )
         self.target_pos[env_ids, 2] = 1.5
-       # goal_z = torch.empty(num_resets, device=self.device).uniform_(1.0, 3.0) #might increase the Z to make it harder (also compared to obs)
-       #  self.target_pos[env_ids, 2] = ( #goal Z position
-        #     self.scene.env_origins[env_ids, 2]
-        #     + goal_z
-       #  )
 
         #reset prev distances for delta-distance reward
         goal_vec_init = self.target_pos[env_ids] - self._robot.data.root_pos_w[env_ids]
