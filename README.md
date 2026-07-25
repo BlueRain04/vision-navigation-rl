@@ -173,11 +173,11 @@ Over this budget, the **success rate nearly doubled** from its early-training le
 ## What's next
 
 - [x] Log and chart success-rate / collision-rate curves over training
-- [ ] Increase the relative weight of the collision penalty — the diagnosed fix, to be tested before spending further GPU budget on this configuration
+- [ ] Increase the relative weight of the collision penalty
 - [ ] Record and add a rollout demo clip (`train.py` already supports `--video`)
 - [ ] Evaluate generalization to obstacle counts/densities not seen during training
 - [ ] Explore sim-to-real transfer considerations
 
 ## Author
 
-Built by [BlueRain04](https://github.com/BlueRain04) — part of an ongoing portfolio of applied reinforcement learning and computer vision projects, alongside a multi-agent RL traffic signal control system.
+Built by [BlueRain04](https://github.com/BlueRain04)
