@@ -72,7 +72,6 @@ Training logs episode-level success rate and collision rate to `training_stats.c
 
 This run was trained to 52,237 episodes on a rented cloud GPU, then deliberately stopped short of full convergence — continuing to train against a plateaued collision-rate curve has a real dollar cost per additional hour, and the more useful next step is a reward-shaping change (below), not more compute against the current setup.
 
-![Training progress](assets/training_trend.png)
 
 The goal-reaching success rate trends clearly upward over the course of training, showing the policy is learning the navigation task from vision alone rather than plateauing immediately. Collision avoidance, by contrast, improved early on but plateaued well before success rate did — the clearest signal that the current reward balance under-weights collisions relative to goal-reaching, and that more training steps on this exact configuration wouldn't have fixed it. The next iteration increases the relative weight of the collision penalty rather than the training budget (see below).
 
