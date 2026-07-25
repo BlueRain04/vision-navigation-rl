@@ -67,7 +67,7 @@ class QuadcopterEnvCfg(DirectRLEnvCfg):
     #base configuration for one obstacle
     _base_obstacle = RigidObjectCfg( 
         prim_path="/World/envs/env_.*/Obstacle1",
-        spawn=sim_utils.MultiAssetSpawnerCfg( #multi asset since it handles different objects
+        spawn=sim_utils.MultiAssetSpawnerCfg(
             assets_cfg =
             [
                 sim_utils.CylinderCfg( 
@@ -193,4 +193,4 @@ class QuadcopterEnvCfg(DirectRLEnvCfg):
     kp_vel_pitch = 0.15
     ki_vel_pitch = 0.02
     kd_vel_pitch = 0.05
-    max_horizontal_dist = 8.0 #meters from env origin, generous given goals are 3.5-5m away
+    max_horizontal_dist = 8.0 #meters from env origin
