@@ -4,6 +4,7 @@ Vision-based obstacle avoidance and goal navigation for a quadcopter, trained wi
 
 A Crazyflie drone learns to fly from a random start point to a random goal, through a field of randomly placed obstacles, using **only its onboard RGB and depth cameras** — no privileged map, no global obstacle positions fed to the policy.
 
+> Training is ongoing — the results below reflect progress after ~52k episodes / ~181k environment steps. This README will be updated as later checkpoints improve.
 
 ---
 
@@ -69,23 +70,23 @@ Training logs episode-level success rate and collision rate to `training_stats.c
 
 ## Results
 
-Training run so far: **52,237 episodes / ~181k environment steps**, PPO across 64 parallel environments.
+This run was trained to **52,237 episodes / ~181k of a planned 200k environment steps** on a rented cloud GPU, then deliberately stopped short of full convergence — continuing to train against a flat collision-rate curve has a real dollar cost per additional hour, and the more useful next step is a reward-shaping change (below), not just more compute against the current setup.
 
 ![Training curves](assets/training_curves.png)
+
+Over this budget, the **success rate nearly doubled** from its early-training level to a recent-window peak of ~36%, showing the policy is clearly learning the navigation task from vision alone. The **collision rate plateaued around 24%** and did not meaningfully improve with additional training — which is the actual signal that matters here: more steps on this configuration weren't the fix, so continuing to spend GPU hours on it wouldn't have been a good trade. The next iteration increases the relative weight of the collision penalty rather than the training budget (see below).
 
 | Metric | Value |
 |---|---|
 | Cumulative success rate (full run) | 31.0% |
 | Cumulative collision rate (full run) | 23.8% |
 | Success rate, best 2k-episode window | 35.7% (up from ~19.7% early in training) |
-| Collision rate, best 2k-episode window | ~24%, largely flat so far |
-
-**Reading these honestly:** the windowed success-rate curve (right panel) shows the policy is genuinely learning to reach the goal more often over time — nearly doubling from its early-training rate. The collision rate has not meaningfully improved yet, which is the clearest signal for where to focus next: likely a heavier relative penalty on the collision term, or curriculum-style obstacle density scaling, rather than more raw training time. That diagnosis — not just the chart — is the actual point of tracking this metric.
+| Collision rate, best 2k-episode window | ~24%, plateaued
 
 ## What's next
 
 - [x] Log and chart success-rate / collision-rate curves over training
-- [ ] Increase the relative weight of the collision penalty and re-run, to close the gap between success-rate gains and flat collision-rate
+- [ ] Increase the relative weight of the collision penalty — the diagnosed fix, to be tested before spending further GPU budget on this configuration
 - [ ] Record and add a rollout demo clip (`train.py` already supports `--video`)
 - [ ] Evaluate generalization to obstacle counts/densities not seen during training
 - [ ] Explore sim-to-real transfer considerations
