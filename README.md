@@ -4,7 +4,6 @@ Vision-based obstacle avoidance and goal navigation for a quadcopter, trained wi
 
 A Crazyflie drone learns to fly from a random start point to a random goal, through a field of randomly placed obstacles, using **only its onboard RGB and depth cameras** — no privileged map, no global obstacle positions fed to the policy.
 
-> Training is ongoing — the results below reflect progress after ~52k episodes / ~181k environment steps. This README will be updated as later checkpoints improve.
 
 ---
 
