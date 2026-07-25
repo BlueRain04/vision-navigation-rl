@@ -10,7 +10,7 @@ def get_agent(env, device, experiment_cfg=None):
     constructs the PPO agent for drone navigatio
     """
     #configuration
-    rollout_length = 256  #steps per environment before update "check later if needed"
+    rollout_length = 256  #steps per environment before update
     
     #1 memory
     memory = RandomMemory(memory_size=rollout_length, num_envs=env.num_envs, device=device)
