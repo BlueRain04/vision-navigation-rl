@@ -161,14 +161,7 @@ This run was trained to **52,237 episodes / ~181k of a planned 200k environment 
 
 ![Training curves](assets/training_curves.png)
 
-Over this budget, the **success rate nearly doubled** from its early-training level to a recent-window peak of ~36%, showing the policy is clearly learning the navigation task from vision alone. The **collision rate plateaued around 24%** and did not meaningfully improve with additional training — which is the actual signal that matters here: more steps on this configuration weren't the fix, so continuing to spend GPU hours on it wouldn't have been a good trade. The next iteration increases the relative weight of the collision penalty rather than the training budget (see below).
-
-| Metric | Value |
-|---|---|
-| Cumulative success rate (full run) | 31.0% |
-| Cumulative collision rate (full run) | 23.8% |
-| Success rate, best 2k-episode window | 35.7% (up from ~19.7% early in training) |
-| Collision rate, best 2k-episode window | ~24%, plateaued
+Over this budget, the **success rate nearly doubled** from its early-training level to a recent-window, showing the policy is clearly learning the navigation task from vision alone. The **collision rate plateaued around 24%** and did not meaningfully improve with additional training — which is the actual signal that matters here: more steps on this configuration weren't the fix. The next iteration increases the relative weight of the collision penalty rather than the training budget (see below).
 
 ## What's next
 
