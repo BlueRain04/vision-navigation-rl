@@ -85,7 +85,7 @@ The goal-reaching success rate trends clearly upward over the course of training
 
 ## Author
 
-Built by [BlueRain04](https://github.com/BlueRain04)
+Built by [GhaidaCS](https://github.com/BlueRain04)
 
 Vision-based obstacle avoidance and goal navigation for a quadcopter, trained with reinforcement learning in [NVIDIA Isaac Lab](https://isaac-sim.github.io/IsaacLab/).
 
